@@ -31,3 +31,7 @@ export const getPermissionGuardExample: RequestHandler = (req, res) => {
     },
   });
 };
+
+export const getAccessPipelineExample: RequestHandler = (req, res) => {
+  res.status(200).json({ data: { userId: req.authenticatedUser!.id, workspace: req.workspaceContext } });
+};

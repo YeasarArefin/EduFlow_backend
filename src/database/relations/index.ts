@@ -2,6 +2,13 @@ import { relations } from "drizzle-orm";
 import { platformOwners } from "../schema/platform";
 import { permissions, rolePermissions, workspaceRoles } from "../schema/roles";
 import { memberPermissionOverrides, workspaceMembers, workspaceSettings, workspaces } from "../schema/workspaces";
+import {
+  features,
+  planFeatures,
+  plans,
+  subscriptions,
+  workspaceEntitlementOverrides,
+} from "../schema/subscriptions";
 
 export const platformOwnersRelations = relations(platformOwners, () => ({}));
 
@@ -30,6 +37,8 @@ export const workspacesRelations = relations(workspaces, ({ many, one }) => ({
   settings: one(workspaceSettings),
   members: many(workspaceMembers),
   memberPermissionOverrides: many(memberPermissionOverrides),
+  entitlementOverrides: many(workspaceEntitlementOverrides),
+  subscriptions: many(subscriptions),
 }));
 
 export const workspaceSettingsRelations = relations(workspaceSettings, ({ one }) => ({
@@ -64,4 +73,29 @@ export const memberPermissionOverridesRelations = relations(memberPermissionOver
     fields: [memberPermissionOverrides.permissionCode],
     references: [permissions.code],
   }),
+}));
+
+export const plansRelations = relations(plans, ({ many }) => ({
+  features: many(planFeatures),
+  subscriptions: many(subscriptions),
+}));
+
+export const featuresRelations = relations(features, ({ many }) => ({
+  plans: many(planFeatures),
+  workspaceOverrides: many(workspaceEntitlementOverrides),
+}));
+
+export const planFeaturesRelations = relations(planFeatures, ({ one }) => ({
+  plan: one(plans, { fields: [planFeatures.planId], references: [plans.id] }),
+  feature: one(features, { fields: [planFeatures.featureKey], references: [features.key] }),
+}));
+
+export const workspaceEntitlementOverridesRelations = relations(workspaceEntitlementOverrides, ({ one }) => ({
+  workspace: one(workspaces, { fields: [workspaceEntitlementOverrides.workspaceId], references: [workspaces.id] }),
+  feature: one(features, { fields: [workspaceEntitlementOverrides.featureKey], references: [features.key] }),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  workspace: one(workspaces, { fields: [subscriptions.workspaceId], references: [workspaces.id] }),
+  plan: one(plans, { fields: [subscriptions.planId], references: [plans.id] }),
 }));
