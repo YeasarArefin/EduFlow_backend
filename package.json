@@ -1,0 +1,51 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+    "main": "dist/backend/src/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/backend/src/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && vitest run --configLoader runner --environment node --globals test/app.test.mjs test/auth.test.mjs test/database.test.mjs test/core-constraints.test.mjs test/rls-isolation.test.mjs",
+    "db:check": "npm run build && vitest run --configLoader runner --environment node --globals test/database.test.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/database/seed/workspace-authorization.ts",
+    "db:setup": "npm run db:migrate && npm run db:seed"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.2",
+    "better-auth": "^1.7.2",
+    "cors": "^2.8.6",
+    "drizzle-orm": "^0.45.2",
+    "express": "5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "pg": "^8.23.0",
+    "pino": "10.3.1",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@rolldown/binding-wasm32-wasi": "^1.2.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "5.0.6",
+    "@types/node": "^24.13.3",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "7.2.1",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.9.1",
+    "supertest": "7.2.2",
+    "tsx": "4.23.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
+  }
+}

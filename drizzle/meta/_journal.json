@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788170534247,
+      "tag": "0000_phase_1_2_core_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788170534248,
+      "tag": "0001_phase_1_5_workspace_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788171750770,
+      "tag": "0002_cheerful_cassandra_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788171939771,
+      "tag": "0003_woozy_black_knight",
+      "breakpoints": true
+    }
+  ]
+}
