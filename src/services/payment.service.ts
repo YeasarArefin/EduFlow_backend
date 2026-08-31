@@ -17,31 +17,46 @@ export async function createSubscriptionPaymentRequest(
   input: CreateSubscriptionPaymentInput
 ) {
   try {
-    const [paymentRequest] = await db
-      .insert(paymentRequests)
-      .values({
-        workspaceId,
-        requestedByUserId,
-        purpose: "subscription",
-        planId: input.planId,
-        amountMinor: input.amountMinor,
-        method: input.paymentMethod,
-        senderBkashNumber: input.senderNumber,
-        transactionId: input.transactionId,
-        status: "pending"
-      })
-      .returning({
-        id: paymentRequests.id,
-        planId: paymentRequests.planId,
-        amountMinor: paymentRequests.amountMinor,
-        paymentMethod: paymentRequests.method,
-        senderNumber: paymentRequests.senderBkashNumber,
-        transactionId: paymentRequests.transactionId,
-        status: paymentRequests.status,
-        createdAt: paymentRequests.createdAt
-      });
+    return await db.transaction(async (transaction) => {
+      const [plan] = await transaction
+        .select({ priceMinor: plans.priceMinor })
+        .from(plans)
+        .where(and(eq(plans.id, input.planId), eq(plans.isActive, true)))
+        .limit(1)
+        .for("update");
+      if (!plan) {
+        throw new AppError("PAYMENT_PLAN_NOT_PURCHASABLE", "The selected plan is not currently available.", 400);
+      }
+      if (plan.priceMinor !== input.amountMinor) {
+        throw new AppError("PAYMENT_AMOUNT_MISMATCH", "The payment amount does not match the selected plan.", 400);
+      }
 
-    return paymentRequest;
+      const [paymentRequest] = await transaction
+        .insert(paymentRequests)
+        .values({
+          workspaceId,
+          requestedByUserId,
+          purpose: "subscription",
+          planId: input.planId,
+          amountMinor: input.amountMinor,
+          method: input.paymentMethod,
+          senderBkashNumber: input.senderNumber,
+          transactionId: input.transactionId,
+          status: "pending"
+        })
+        .returning({
+          id: paymentRequests.id,
+          planId: paymentRequests.planId,
+          amountMinor: paymentRequests.amountMinor,
+          paymentMethod: paymentRequests.method,
+          senderNumber: paymentRequests.senderBkashNumber,
+          transactionId: paymentRequests.transactionId,
+          status: paymentRequests.status,
+          createdAt: paymentRequests.createdAt
+        });
+
+      return paymentRequest;
+    });
   } catch (error) {
     const databaseError =
       error && typeof error === "object" ? (error as { code?: string; cause?: { code?: string } }) : undefined;
@@ -66,6 +81,28 @@ export async function listPendingPaymentRequests() {
     .from(paymentRequests)
     .where(eq(paymentRequests.status, "pending"))
     .orderBy(desc(paymentRequests.createdAt));
+}
+
+export async function getLatestSubscriptionPaymentRequest(workspaceId: string) {
+  const [payment] = await db
+    .select({
+      id: paymentRequests.id,
+      planId: paymentRequests.planId,
+      amountMinor: paymentRequests.amountMinor,
+      paymentMethod: paymentRequests.method,
+      senderNumber: paymentRequests.senderBkashNumber,
+      transactionId: paymentRequests.transactionId,
+      status: paymentRequests.status,
+      reviewedAt: paymentRequests.reviewedAt,
+      rejectionReason: paymentRequests.rejectionReason,
+      createdAt: paymentRequests.createdAt
+    })
+    .from(paymentRequests)
+    .where(and(eq(paymentRequests.workspaceId, workspaceId), eq(paymentRequests.purpose, "subscription")))
+    .orderBy(desc(paymentRequests.createdAt))
+    .limit(1);
+
+  return payment ?? null;
 }
 
 export async function reviewPaymentRequest(

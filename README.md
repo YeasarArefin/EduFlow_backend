@@ -17,8 +17,19 @@ npm run db:seed
 npm run db:check
 ```
 
-`db:generate` creates a Drizzle migration from the current schema and should be run only after a schema change. `db:migrate` applies all pending migrations and is safe to repeat. `db:seed` upserts fixed workspace roles and permissions and is safe to repeat. `db:check` builds the backend and runs the live PostgreSQL connectivity check.
+`db:generate` creates a Drizzle migration from the current schema and should be run only after a schema change. `db:migrate` applies all pending migrations and is safe to repeat. `db:seed` upserts fixed workspace roles and permissions and, only when `NODE_ENV=development`, creates or refreshes the local Platform Owner account. `db:check` builds the backend and runs the live PostgreSQL connectivity check.
 
 For the common setup path, use `npm run db:setup`, which applies migrations and then seeds reference data.
+
+## Development Platform Owner
+
+After `npm run db:seed` or `npm run db:setup` in development, sign in with:
+
+```text
+Email: admin@admin.com
+Password: 123456789789
+```
+
+This account is linked to the existing `platform_owners` singleton and routes to `/platform`. It is never created when `NODE_ENV` is `test` or `production`; these credentials are for local development only.
 
 The full verification suite is `npm test`; it includes the constraint and RLS integration tests and requires the Docker PostgreSQL database to be running.

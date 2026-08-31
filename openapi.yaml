@@ -5,6 +5,47 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/workspaces/onboarding-state:
+    get:
+      summary: Get the current workspace onboarding state
+      operationId: getWorkspaceOnboardingState
+      description: Returns routing state derived from existing workspace, subscription-access, and payment-request records.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      responses:
+        "200":
+          description: Current onboarding state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties: { data: { $ref: "#/components/schemas/WorkspaceOnboardingState" } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
+  /api/v1/workspaces/onboard:
+    post:
+      summary: Create a workspace in onboarding state
+      operationId: createWorkspaceOnboard
+      description: Creates only the workspace record. Workspace membership, settings, subscription, and payment setup are deferred to later onboarding steps.
+      security: [{ betterAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateWorkspaceOnboard" }
+      responses:
+        "201":
+          description: Pending workspace created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties: { data: { $ref: "#/components/schemas/OnboardedWorkspace" } }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "409": { description: Workspace slug already exists }
   /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
     post:
       summary: Run a Platform Owner subscription lifecycle operation
@@ -149,6 +190,21 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
         "409": { description: Plan slug already exists }
+  /api/v1/public/plans:
+    get:
+      summary: List active purchasable plans
+      operationId: listPublicPlans
+      description: Returns only active plans and their public feature defaults. Monetary and quota values are exact minor-unit strings.
+      responses:
+        "200":
+          description: Active public plans
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/PublicPlan" } }
   /api/v1/plans/{id}:
     patch:
       summary: Update a plan
@@ -288,7 +344,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaymentResponse"
-        "400": { $ref: "#/components/responses/ValidationError" }
+        "400": { description: Validation error, unavailable plan, or amount mismatch }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
         "409": { $ref: "#/components/responses/DuplicateTransaction" }
@@ -312,6 +368,29 @@ paths:
                     items: { $ref: "#/components/schemas/PaymentRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+  /api/v1/payment-requests/latest:
+    get:
+      summary: Get the latest subscription payment for the selected workspace
+      operationId: getLatestPaymentRequest
+      security:
+        - betterAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: Latest subscription payment request, or null when none exists
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/PaymentRequest"
+                    nullable: true
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
   /api/v1/payment-requests/{id}/approve:
     post:
       summary: Approve a pending payment request and activate its subscription
@@ -389,6 +468,47 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    WorkspaceOnboardingState:
+      type: object
+      required: [step, workspaceStatus, paymentPending, access]
+      properties:
+        step: { type: string, enum: [workspace_created, subscription_required, payment_pending, ready] }
+        workspaceStatus: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+        paymentPending: { type: boolean }
+        access:
+          type: object
+          required: [allowed, status, reason]
+          properties:
+            allowed: { type: boolean }
+            status:
+              {
+                type: string,
+                enum:
+                  [verification_pending, payment_pending, trial, active, renewal_due, subscription_expired, locked, scheduled_for_deletion, suspended]
+              }
+            reason: { type: string }
+    CreateWorkspaceOnboard:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 100 }
+        phone: { type: string, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        email: { type: string, format: email, maxLength: 255 }
+        address: { type: string, minLength: 1, maxLength: 2000 }
+    OnboardedWorkspace:
+      type: object
+      required: [id, name, slug, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        address: { type: string, nullable: true }
+        status: { type: string, enum: [pending] }
+        createdAt: { type: string, format: date-time }
     EntitlementOverrideInput:
       type: object
       required: [featureKey, enabledOverride, limitOverride, reason, expiresAt]
@@ -451,6 +571,34 @@ components:
               createdAt: { type: string, format: date-time },
               updatedAt: { type: string, format: date-time }
             }
+    PublicPlan:
+      type: object
+      required: [id, name, slug, priceMinor, durationDays, trial, features, quotas]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        priceMinor: { type: string, pattern: '^\d+$', description: BDT poisha }
+        durationDays: { type: integer, minimum: 0 }
+        trial:
+          type: object
+          required: [included, days]
+          properties:
+            included: { type: boolean }
+            days: { type: integer, minimum: 0 }
+        features:
+          type: array
+          items:
+            type: object
+            required: [key, name, description, defaultLimit]
+            properties:
+              key: { type: string }
+              name: { type: string }
+              description: { type: string, nullable: true }
+              defaultLimit: { type: string, nullable: true, pattern: '^\d+$' }
+        quotas:
+          type: object
+          additionalProperties: { type: string, nullable: true, pattern: '^\d+$' }
     WorkspaceDetail:
       type: object
       required: [workspace, subscription, access, subscriptionHistory, recentPayments, activeEntitlementOverrides]

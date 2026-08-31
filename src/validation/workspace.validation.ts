@@ -12,3 +12,20 @@ export const workspaceListQuerySchema = z
   })
   .strict();
 export const workspaceIdSchema = uuidSchema;
+
+const bangladeshiMobileNumberSchema = z.string().regex(/^(?:\+8801\d{9}|01\d{9})$/);
+
+export const createWorkspaceOnboardingSchema = z
+  .object({
+    name: z.string().trim().min(1).max(150),
+    slug: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must use lowercase letters, numbers, and hyphens."),
+    phone: bangladeshiMobileNumberSchema.optional(),
+    email: z.string().trim().email().max(255).optional(),
+    address: z.string().trim().min(1).max(2_000).optional()
+  })
+  .strict();

@@ -21,6 +21,7 @@ async function query(text, values = []) {
 }
 
 describe("Phase 1.1 PostgreSQL constraints", () => {
+  let createdPlatformOwner = false;
   beforeAll(async () => {
     await query("INSERT INTO workspaces (id, name, slug, created_by_user_id) VALUES ($1, $2, $3, $4)", [
       workspaceId,
@@ -35,15 +36,21 @@ describe("Phase 1.1 PostgreSQL constraints", () => {
     await query("DELETE FROM workspace_members WHERE workspace_id = $1", [workspaceId]);
     await query("DELETE FROM workspace_settings WHERE workspace_id = $1", [workspaceId]);
     await query("DELETE FROM workspaces WHERE id = $1", [workspaceId]);
-    await query("DELETE FROM platform_owners WHERE user_id = $1", [`constraint-platform-${suffix}`]);
+    if (createdPlatformOwner) {
+      await query("DELETE FROM platform_owners WHERE user_id = $1", [`constraint-platform-${suffix}`]);
+    }
     await pool.end();
   });
 
   it("enforces the Platform Owner singleton", async () => {
     const userId = `constraint-platform-${suffix}`;
-    await query("INSERT INTO platform_owners (user_id) VALUES ($1)", [userId]);
+    const existingOwner = await query("SELECT id FROM platform_owners LIMIT 1");
+    if (!existingOwner.rowCount) {
+      await query("INSERT INTO platform_owners (user_id) VALUES ($1)", [userId]);
+      createdPlatformOwner = true;
+    }
     await expect(
-      query("INSERT INTO platform_owners (user_id) VALUES ($1)", [`second-${suffix}`])
+      query("INSERT INTO platform_owners (user_id) VALUES ($1)", [createdPlatformOwner ? `second-${suffix}` : userId])
     ).rejects.toMatchObject({ code: "23505" });
   });
 

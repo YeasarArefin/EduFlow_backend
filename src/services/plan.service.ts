@@ -1,6 +1,6 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../database/client";
-import { planFeatures, plans } from "../database/schema/subscriptions";
+import { features, planFeatures, plans } from "../database/schema/subscriptions";
 import { AppError } from "../middleware/error-handler";
 
 export type PlanFeatureInput = {
@@ -70,6 +70,74 @@ export async function listPlans() {
 			featureRows.filter((feature) => feature.planId === plan.id)
 		)
 	);
+}
+
+export type PublicPlan = {
+	id: string;
+	name: string;
+	slug: string;
+	priceMinor: string;
+	durationDays: number;
+	trial: { included: boolean; days: number };
+	features: Array<{
+		key: string;
+		name: string;
+		description: string | null;
+		defaultLimit: string | null;
+	}>;
+	quotas: Record<string, string | null>;
+};
+
+export async function listActivePublicPlans(): Promise<PublicPlan[]> {
+	const rows = await db
+		.select({
+			planId: plans.id,
+			planName: plans.name,
+			planSlug: plans.slug,
+			priceMinor: plans.priceMinor,
+			durationDays: plans.durationDays,
+			trialDays: plans.trialDays,
+			featureKey: features.key,
+			featureName: features.name,
+			featureDescription: features.description,
+			defaultLimit: planFeatures.limitValue
+		})
+		.from(plans)
+		.leftJoin(planFeatures, and(eq(planFeatures.planId, plans.id), eq(planFeatures.enabled, true)))
+		.leftJoin(features, eq(features.key, planFeatures.featureKey))
+		.where(eq(plans.isActive, true))
+		.orderBy(asc(plans.createdAt), asc(features.name));
+
+	const publicPlans = new Map<string, PublicPlan>();
+	for (const row of rows) {
+		let plan = publicPlans.get(row.planId);
+		if (!plan) {
+			plan = {
+				id: row.planId,
+				name: row.planName,
+				slug: row.planSlug,
+				priceMinor: row.priceMinor.toString(),
+				durationDays: row.durationDays,
+				trial: { included: row.trialDays > 0, days: row.trialDays },
+				features: [],
+				quotas: {}
+			};
+			publicPlans.set(row.planId, plan);
+		}
+
+		if (row.featureKey && row.featureName) {
+			const defaultLimit = row.defaultLimit?.toString() ?? null;
+			plan.features.push({
+				key: row.featureKey,
+				name: row.featureName,
+				description: row.featureDescription,
+				defaultLimit
+			});
+			plan.quotas[row.featureKey] = defaultLimit;
+		}
+	}
+
+	return [...publicPlans.values()];
 }
 
 export async function createPlan(input: PlanInput) {

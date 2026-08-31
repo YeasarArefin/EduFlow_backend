@@ -3,6 +3,7 @@ import pg from "pg";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { assignPlatformOwner, restorePlatformOwner } from "./support/platform-owner-fixture.mjs";
 
 const require = createRequire(import.meta.url);
 const { createApp } = require("../dist/backend/src/app.js");
@@ -25,6 +26,7 @@ describe("Platform Owner payment review API", () => {
   let ownerCookie;
   let memberCookie;
   let paymentId;
+  let platformOwnerFixture;
 
   beforeAll(async () => {
     for (const [email, name] of [
@@ -50,7 +52,7 @@ describe("Platform Owner payment review API", () => {
         .send({ email: memberEmail, password: "safe-test-password" })
         .expect(200)
     ).headers["set-cookie"]?.[0];
-    await pool.query("INSERT INTO platform_owners (user_id) VALUES ($1)", [ownerId]);
+    platformOwnerFixture = await assignPlatformOwner(pool, ownerId);
     await pool.query("INSERT INTO workspaces (id, name, slug, status) VALUES ($1, $2, $3, 'active')", [
       workspaceId,
       "Review Workspace",
@@ -89,7 +91,7 @@ describe("Platform Owner payment review API", () => {
     await pool.query("DELETE FROM plans WHERE id = $1", [planId]);
     await pool.query("DELETE FROM features WHERE key = $1", [featureKey]);
     await pool.query("DELETE FROM workspaces WHERE id = $1", [workspaceId]);
-    await pool.query("DELETE FROM platform_owners WHERE user_id = $1", [ownerId]);
+    await restorePlatformOwner(pool, platformOwnerFixture);
     await pool.query('DELETE FROM "user" WHERE id IN ($1, $2)', [ownerId, memberId]);
     await pool.end();
   });

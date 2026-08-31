@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import {
   createSubscriptionPaymentRequest,
+  getLatestSubscriptionPaymentRequest,
   listPendingPaymentRequests,
   reviewPaymentRequest
 } from "../services/payment.service";
@@ -49,8 +50,28 @@ export const createPaymentRequest: RequestHandler = async (req, res, next) => {
   }
 };
 
-function mapPayment(payment: { amountMinor: bigint;[key: string]: unknown; }) {
-  return { ...payment, amountMinor: payment.amountMinor.toString() };
+function mapPayment(payment: { amountMinor: bigint; [key: string]: unknown } | null) {
+  return payment ? { ...payment, amountMinor: payment.amountMinor.toString() } : null;
+}
+
+export const getLatestPayment: RequestHandler = async (req, res, next) => {
+  const context = req.workspaceContext;
+  if (!context) {
+    res.status(401).json({
+      error: {
+        code: "UNAUTHENTICATED",
+        message: "A valid authentication session is required."
+      }
+    });
+    return;
+  }
+
+  try {
+    const payment = await getLatestSubscriptionPaymentRequest(context.workspaceId);
+    res.status(200).json({ data: mapPayment(payment) });
+  } catch (error) {
+    next(error);
+  }
 }
 
 export const listPendingPayments: RequestHandler = async (_req, res, next) => {

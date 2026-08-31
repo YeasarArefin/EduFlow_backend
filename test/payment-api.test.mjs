@@ -41,7 +41,7 @@ describe("payment submission API", () => {
       workspaceId,
       userId
     ]);
-    await pool.query("INSERT INTO plans (id, name, slug, duration_days, trial_days) VALUES ($1, $2, $3, 30, 0)", [
+    await pool.query("INSERT INTO plans (id, name, slug, price_minor, duration_days, trial_days) VALUES ($1, $2, $3, 125050, 30, 0)", [
       planId,
       "API Plan",
       `api-plan-${suffix}`
@@ -77,6 +77,22 @@ describe("payment submission API", () => {
     expect(response.body.data).not.toHaveProperty("reviewedAt");
   });
 
+  it("returns the latest subscription payment to a workspace member", async () => {
+    const response = await request(app)
+      .get("/api/v1/payment-requests/latest")
+      .set("Cookie", cookie)
+      .set("X-Workspace-Id", workspaceId)
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      planId,
+      paymentMethod: "bkash",
+      amountMinor: "125050",
+      status: "pending"
+    });
+    expect(response.body.data).toHaveProperty("createdAt");
+  });
+
   it("rejects invalid bodies with 400", async () => {
     await endpoint()
       .send({ ...body(), amount: -1 })
@@ -98,11 +114,17 @@ describe("payment submission API", () => {
 
   it("denies unauthenticated and non-member callers", async () => {
     await request(app).post("/api/v1/payment-requests").set("X-Workspace-Id", workspaceId).send(body()).expect(401);
+    await request(app).get("/api/v1/payment-requests/latest").set("X-Workspace-Id", workspaceId).expect(401);
     await request(app)
       .post("/api/v1/payment-requests")
       .set("Cookie", cookie)
       .set("X-Workspace-Id", randomUUID())
       .send(body())
+      .expect(403);
+    await request(app)
+      .get("/api/v1/payment-requests/latest")
+      .set("Cookie", cookie)
+      .set("X-Workspace-Id", randomUUID())
       .expect(403);
   });
 });

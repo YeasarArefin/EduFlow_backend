@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { createPlan, listPlans, setPlanActive, updatePlan } from "../services/plan.service";
+import { createPlan, listActivePublicPlans, listPlans, setPlanActive, updatePlan } from "../services/plan.service";
 import { createPlanSchema, planIdSchema, updatePlanSchema } from "../validation/plan.validation";
 
 export const listPlatformPlans: RequestHandler = async (_req, res, next) => {
@@ -8,6 +8,13 @@ export const listPlatformPlans: RequestHandler = async (_req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+export const listPublicPlans: RequestHandler = async (_req, res, next) => {
+	try {
+		res.status(200).json({ data: await listActivePublicPlans() });
+	} catch (error) {
+		next(error);
+	}
 };
 export const createPlatformPlan: RequestHandler = async (req, res, next) => {
   const parsed = createPlanSchema.safeParse(req.body);

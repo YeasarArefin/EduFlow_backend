@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   approvePayment,
   createPaymentRequest,
+  getLatestPayment,
   listPendingPayments,
   rejectPayment
 } from "../../controllers/payment.controller";
@@ -11,6 +12,7 @@ import { requireWorkspaceContext } from "../../middleware/require-workspace-cont
 
 export const paymentRoutes = Router();
 paymentRoutes.post("/", requireAuth, requireWorkspaceContext, createPaymentRequest);
+paymentRoutes.get("/latest", requireAuth, requireWorkspaceContext, getLatestPayment);
 paymentRoutes.get("/pending", requireAuth, requirePlatformOwner, listPendingPayments);
 paymentRoutes.post("/:id/approve", requireAuth, requirePlatformOwner, approvePayment);
 paymentRoutes.post("/:id/reject", requireAuth, requirePlatformOwner, rejectPayment);

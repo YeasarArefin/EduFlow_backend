@@ -1,24 +1,25 @@
 import { db, pool } from "../client";
-import { permissions, rolePermissions, workspaceRoles } from "../schema";
+import { permissions, rolePermissions, workspaceRoleCodes, workspaceRoles } from "../schema";
+import { seedDevelopmentPlatformOwner } from "./development-platform-owner";
 
 const roles = [
   {
-    code: 101,
+    code: workspaceRoleCodes.owner,
     name: "Owner",
     description: "Workspace owner with full authority."
   },
   {
-    code: 201,
+    code: workspaceRoleCodes.admin,
     name: "Admin",
     description: "Workspace administrator with explicitly assigned permissions."
   },
   {
-    code: 301,
+    code: workspaceRoleCodes.teacher,
     name: "Teacher",
     description: "Teacher with explicitly assigned academic permissions."
   },
   {
-    code: 401,
+    code: workspaceRoleCodes.staff,
     name: "Staff",
     description: "Staff member with explicitly assigned operational permissions."
   }
@@ -121,7 +122,7 @@ export async function seedWorkspaceAuthorization(): Promise<void> {
       .insert(rolePermissions)
       .values(
         permissionRows.map(({ code: permissionCode }) => ({
-          roleCode: 101,
+          roleCode: workspaceRoleCodes.owner,
           permissionCode
         }))
       )
@@ -129,8 +130,13 @@ export async function seedWorkspaceAuthorization(): Promise<void> {
   });
 }
 
+export async function seedDatabase(): Promise<void> {
+  await seedWorkspaceAuthorization();
+  await seedDevelopmentPlatformOwner();
+}
+
 if (require.main === module) {
-  seedWorkspaceAuthorization()
+  seedDatabase()
     .then(async () => {
       await pool.end();
     })

@@ -1,5 +1,12 @@
 import { index, integer, pgTable, primaryKey, smallint, text, varchar } from "drizzle-orm/pg-core";
 
+export const workspaceRoleCodes = {
+  owner: 101,
+  admin: 201,
+  teacher: 301,
+  staff: 401
+} as const;
+
 export const workspaceRoles = pgTable("workspace_roles", {
   code: smallint("code").primaryKey(),
   name: varchar("name", { length: 50 }).notNull(),
