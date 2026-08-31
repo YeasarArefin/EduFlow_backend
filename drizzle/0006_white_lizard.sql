@@ -1,0 +1,2 @@
+ALTER TABLE "payment_requests" DROP CONSTRAINT "payment_requests_reviewed_at_status_chk";--> statement-breakpoint
+ALTER TABLE "payment_requests" ADD CONSTRAINT "payment_requests_reviewed_at_status_chk" CHECK (("payment_requests"."status" = 'pending' and "payment_requests"."reviewed_at" is null) or ("payment_requests"."status" <> 'pending' and "payment_requests"."reviewed_at" is not null));

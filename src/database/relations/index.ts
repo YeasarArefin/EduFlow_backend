@@ -6,6 +6,7 @@ import {
   features,
   planFeatures,
   plans,
+  paymentRequests,
   subscriptions,
   workspaceEntitlementOverrides,
 } from "../schema/subscriptions";
@@ -39,6 +40,7 @@ export const workspacesRelations = relations(workspaces, ({ many, one }) => ({
   memberPermissionOverrides: many(memberPermissionOverrides),
   entitlementOverrides: many(workspaceEntitlementOverrides),
   subscriptions: many(subscriptions),
+  paymentRequests: many(paymentRequests),
 }));
 
 export const workspaceSettingsRelations = relations(workspaceSettings, ({ one }) => ({
@@ -78,6 +80,7 @@ export const memberPermissionOverridesRelations = relations(memberPermissionOver
 export const plansRelations = relations(plans, ({ many }) => ({
   features: many(planFeatures),
   subscriptions: many(subscriptions),
+  paymentRequests: many(paymentRequests),
 }));
 
 export const featuresRelations = relations(features, ({ many }) => ({
@@ -98,4 +101,9 @@ export const workspaceEntitlementOverridesRelations = relations(workspaceEntitle
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   workspace: one(workspaces, { fields: [subscriptions.workspaceId], references: [workspaces.id] }),
   plan: one(plans, { fields: [subscriptions.planId], references: [plans.id] }),
+}));
+
+export const paymentRequestsRelations = relations(paymentRequests, ({ one }) => ({
+  workspace: one(workspaces, { fields: [paymentRequests.workspaceId], references: [workspaces.id] }),
+  plan: one(plans, { fields: [paymentRequests.planId], references: [plans.id] }),
 }));

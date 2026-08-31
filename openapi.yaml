@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: EduFlow API
+  version: 1.0.0
+servers:
+  - url: /
+paths:
+  /api/v1/payment-requests:
+    post:
+      summary: Submit a manual subscription payment
+      operationId: createPaymentRequest
+      security:
+        - betterAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: Pending payment request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/WorkspaceMembershipRequired' }
+        '409': { $ref: '#/components/responses/DuplicateTransaction' }
+  /api/v1/payment-requests/pending:
+    get:
+      summary: List pending payment requests
+      operationId: listPendingPaymentRequests
+      security:
+        - betterAuth: []
+      responses:
+        '200':
+          description: Pending payment requests
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PaymentRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+  /api/v1/payment-requests/{id}/approve:
+    post:
+      summary: Approve a pending payment request and activate its subscription
+      operationId: approvePaymentRequest
+      security:
+        - betterAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentRequestId'
+      description: Approves the payment and transactionally creates or renews the workspace subscription from the selected plan. Previous current subscriptions are retained as historical rows.
+      responses:
+        '200': { $ref: '#/components/responses/ReviewedPayment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '409': { $ref: '#/components/responses/AlreadyReviewed' }
+  /api/v1/payment-requests/{id}/reject:
+    post:
+      summary: Reject a pending payment request
+      operationId: rejectPaymentRequest
+      security:
+        - betterAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejectionReason]
+              additionalProperties: false
+              properties:
+                rejectionReason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '200': { $ref: '#/components/responses/ReviewedPayment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '409': { $ref: '#/components/responses/AlreadyReviewed' }
+components:
+  securitySchemes:
+    betterAuth:
+      type: apiKey
+      in: cookie
+      name: better-auth.session_token
+  parameters:
+    WorkspaceId:
+      name: X-Workspace-Id
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+    PaymentRequestId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    CreatePaymentRequest:
+      type: object
+      additionalProperties: false
+      required: [planId, amount, paymentMethod, senderNumber, transactionId]
+      properties:
+        planId: { type: string, format: uuid }
+        amount: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }] }
+        paymentMethod: { type: string, enum: [cash, bkash, nagad, rocket, other] }
+        senderNumber: { type: string, minLength: 1, maxLength: 30 }
+        transactionId: { type: string, minLength: 1, maxLength: 100 }
+    PaymentRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        planId: { type: string, format: uuid, nullable: true }
+        amountMinor: { type: string, pattern: '^\\d+$' }
+        paymentMethod: { type: string, enum: [cash, bkash, nagad, rocket, other] }
+        senderNumber: { type: string }
+        transactionId: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+        reviewedByUserId: { type: string, nullable: true }
+        rejectionReason: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    PaymentResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/PaymentRequest' }
+  responses:
+    ReviewedPayment:
+      description: Payment request reviewed
+      content: { application/json: { schema: { $ref: '#/components/schemas/PaymentResponse' } } }
+    ValidationError:
+      description: Invalid request
+    Unauthenticated:
+      description: Authentication required
+    WorkspaceMembershipRequired:
+      description: Workspace membership required
+    PlatformOwnerRequired:
+      description: Platform Owner authorization required
+    DuplicateTransaction:
+      description: Transaction ID already exists
+    AlreadyReviewed:
+      description: Payment request has already been reviewed

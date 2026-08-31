@@ -15,6 +15,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { workspaces } from "./workspaces";
+import { platformOwners } from "./platform";
 
 export const subscriptionStatus = pgEnum("subscription_status", [
   "trial",
@@ -24,6 +25,25 @@ export const subscriptionStatus = pgEnum("subscription_status", [
   "expired",
   "cancelled",
   "suspended",
+]);
+
+export const paymentRequestStatus = pgEnum("payment_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
+export const paymentRequestPurpose = pgEnum("payment_request_purpose", [
+  "subscription",
+  "sms_credit",
+]);
+
+export const paymentMethod = pgEnum("payment_method", [
+  "cash",
+  "bkash",
+  "nagad",
+  "rocket",
+  "other",
 ]);
 
 export const plans = pgTable(
@@ -123,5 +143,37 @@ export const subscriptions = pgTable(
     index("subscriptions_expires_idx").on(table.expiresAt),
     index("subscriptions_renewal_due_idx").on(table.renewalDueAt),
     index("subscriptions_plan_idx").on(table.planId),
+  ],
+);
+
+export const paymentRequests = pgTable(
+  "payment_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    requestedByUserId: text("requested_by_user_id"),
+    purpose: paymentRequestPurpose("purpose").notNull().default("subscription"),
+    planId: uuid("plan_id").references(() => plans.id),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    method: paymentMethod("payment_method").notNull().default("bkash"),
+    senderBkashNumber: varchar("sender_bkash_number", { length: 30 }).notNull(),
+    transactionId: varchar("transaction_id", { length: 100 }).notNull(),
+    status: paymentRequestStatus("status").notNull().default("pending"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => platformOwners.userId),
+    rejectionReason: text("rejection_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("payment_requests_workspace_status_idx").on(table.workspaceId, table.status),
+    index("payment_requests_status_created_idx").on(table.status, table.createdAt),
+    index("payment_requests_plan_idx").on(table.planId),
+    uniqueIndex("payment_requests_transaction_id_idx").on(table.transactionId),
+    check("payment_requests_subscription_plan_chk", sql`${table.purpose} <> 'subscription' or ${table.planId} is not null`),
+    check("payment_requests_amount_minor_nonnegative_chk", sql`${table.amountMinor} >= 0`),
+    check("payment_requests_reviewed_at_status_chk", sql`(${table.status} = 'pending' and ${table.reviewedAt} is null) or (${table.status} <> 'pending' and ${table.reviewedAt} is not null)`),
   ],
 );

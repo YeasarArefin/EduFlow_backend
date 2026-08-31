@@ -11,10 +11,18 @@ import {
   getWorkspaceContext,
   getAccessPipelineExample,
 } from "../../controllers/v1.controller";
+import { createPaymentRequest } from "../../controllers/payment.controller";
+import { approvePayment, listPendingPayments, rejectPayment } from "../../controllers/payment.controller";
+import { requirePlatformOwner } from "../../middleware/require-platform-owner";
 
 export const v1Router = Router();
 
 v1Router.get("/", getApiInfo);
+
+v1Router.post("/payment-requests", requireAuth, requireWorkspaceContext, createPaymentRequest);
+v1Router.get("/payment-requests/pending", requireAuth, requirePlatformOwner, listPendingPayments);
+v1Router.post("/payment-requests/:id/approve", requireAuth, requirePlatformOwner, approvePayment);
+v1Router.post("/payment-requests/:id/reject", requireAuth, requirePlatformOwner, rejectPayment);
 
 v1Router.get("/auth-context", requireAuth, getAuthContext);
 
