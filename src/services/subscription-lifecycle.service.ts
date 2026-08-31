@@ -4,16 +4,21 @@ import { subscriptions } from "../database/schema/subscriptions";
 import { workspaces } from "../database/schema/workspaces";
 import { AppError } from "../middleware/error-handler";
 
-export type SubscriptionLifecycleTransition = "renewal_due" | "expired" | "locked" | "scheduled_deletion";
+export type SubscriptionLifecycleTransition = "renewal_due" | "expired" | "locked" | "unlocked" | "scheduled_deletion";
 
 function invalidTransition(from: string, to: string): never {
-  throw new AppError("INVALID_SUBSCRIPTION_TRANSITION", `Cannot transition subscription lifecycle from ${from} to ${to}.`, 409);
+  throw new AppError(
+    "INVALID_SUBSCRIPTION_TRANSITION",
+    `Cannot transition subscription lifecycle from ${from} to ${to}.`,
+    409
+  );
 }
 
 export async function transitionSubscriptionLifecycle(
   workspaceId: string,
   target: SubscriptionLifecycleTransition,
   now = new Date(),
+  scheduledDeleteAt?: Date
 ) {
   return db.transaction(async (transaction) => {
     const [subscription] = await transaction
@@ -24,7 +29,10 @@ export async function transitionSubscriptionLifecycle(
       .limit(1)
       .for("update");
     const [workspace] = await transaction
-      .select({ status: workspaces.status, scheduledDeleteAt: workspaces.scheduledDeleteAt })
+      .select({
+        status: workspaces.status,
+        scheduledDeleteAt: workspaces.scheduledDeleteAt
+      })
       .from(workspaces)
       .where(eq(workspaces.id, workspaceId))
       .for("update");
@@ -35,7 +43,8 @@ export async function transitionSubscriptionLifecycle(
       if (!subscription) throw new AppError("SUBSCRIPTION_NOT_FOUND", "The workspace has no subscription.", 404);
       if (subscription.status === target) return { subscription, workspace };
       if (target === "renewal_due") {
-        if (subscription.status !== "active" || !subscription.renewalDueAt || subscription.renewalDueAt > now) invalidTransition(subscription.status, target);
+        if (subscription.status !== "active" || !subscription.renewalDueAt || subscription.renewalDueAt > now)
+          invalidTransition(subscription.status, target);
       } else if (subscription.status !== "renewal_due" || !subscription.expiresAt || subscription.expiresAt > now) {
         invalidTransition(subscription.status, target);
       }
@@ -49,7 +58,8 @@ export async function transitionSubscriptionLifecycle(
 
     if (target === "locked") {
       if (workspace.status === "locked") return { subscription, workspace };
-      if (workspace.status !== "active" || !subscription || subscription.status !== "expired") invalidTransition(subscription?.status ?? workspace.status, target);
+      if (workspace.status !== "active" || !subscription || subscription.status !== "expired")
+        invalidTransition(subscription?.status ?? workspace.status, target);
       const [updatedWorkspace] = await transaction
         .update(workspaces)
         .set({ status: "locked", lockedAt: now, updatedAt: now })
@@ -58,11 +68,37 @@ export async function transitionSubscriptionLifecycle(
       return { subscription, workspace: updatedWorkspace };
     }
 
+    if (target === "unlocked") {
+      if (workspace.status === "active") return { subscription, workspace };
+      if (
+        workspace.status !== "locked" ||
+        !subscription ||
+        !["trial", "active", "renewal_due"].includes(subscription.status)
+      )
+        invalidTransition(workspace.status, target);
+      const [updatedWorkspace] = await transaction
+        .update(workspaces)
+        .set({
+          status: "active",
+          lockedAt: null,
+          scheduledDeleteAt: null,
+          updatedAt: now
+        })
+        .where(and(eq(workspaces.id, workspaceId), eq(workspaces.status, "locked")))
+        .returning();
+      return { subscription, workspace: updatedWorkspace };
+    }
+
     if (workspace.status === "scheduled_deletion") return { subscription, workspace };
-    if (workspace.status !== "locked" || !workspace.scheduledDeleteAt || workspace.scheduledDeleteAt > now) invalidTransition(workspace.status, target);
+    const deletionAt = scheduledDeleteAt ?? workspace.scheduledDeleteAt;
+    if (workspace.status !== "locked" || !deletionAt || deletionAt <= now) invalidTransition(workspace.status, target);
     const [updatedWorkspace] = await transaction
       .update(workspaces)
-      .set({ status: "scheduled_deletion", updatedAt: now })
+      .set({
+        status: "scheduled_deletion",
+        scheduledDeleteAt: deletionAt,
+        updatedAt: now
+      })
       .where(and(eq(workspaces.id, workspaceId), eq(workspaces.status, "locked")))
       .returning();
     return { subscription, workspace: updatedWorkspace };

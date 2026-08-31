@@ -4,22 +4,22 @@ export const getApiInfo: RequestHandler = (_req, res) => {
   res.status(200).json({
     data: {
       name: "EduFlow API",
-      version: "v1",
-    },
+      version: "v1"
+    }
   });
 };
 
 export const getAuthContext: RequestHandler = (req, res) => {
   res.status(200).json({
     data: {
-      userId: req.authenticatedUser!.id,
-    },
+      userId: req.authenticatedUser!.id
+    }
   });
 };
 
 export const getWorkspaceContext: RequestHandler = (req, res) => {
   res.status(200).json({
-    data: req.workspaceContext,
+    data: req.workspaceContext
   });
 };
 
@@ -27,11 +27,16 @@ export const getPermissionGuardExample: RequestHandler = (req, res) => {
   res.status(200).json({
     data: {
       userId: req.authenticatedUser!.id,
-      workspace: req.workspaceContext,
-    },
+      workspace: req.workspaceContext
+    }
   });
 };
 
 export const getAccessPipelineExample: RequestHandler = (req, res) => {
-  res.status(200).json({ data: { userId: req.authenticatedUser!.id, workspace: req.workspaceContext } });
+  res.status(200).json({
+    data: {
+      userId: req.authenticatedUser!.id,
+      workspace: req.workspaceContext
+    }
+  });
 };

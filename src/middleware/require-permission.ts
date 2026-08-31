@@ -6,7 +6,10 @@ export function requirePermission(permissionKey: string) {
     const context = req.workspaceContext;
     if (!context) {
       res.status(403).json({
-        error: { code: "WORKSPACE_CONTEXT_REQUIRED", message: "Workspace context is required." },
+        error: {
+          code: "WORKSPACE_CONTEXT_REQUIRED",
+          message: "Workspace context is required."
+        }
       });
       return;
     }
@@ -14,7 +17,10 @@ export function requirePermission(permissionKey: string) {
     try {
       if (!(await hasWorkspacePermission(context, permissionKey))) {
         res.status(403).json({
-          error: { code: "PERMISSION_REQUIRED", message: "This permission is required." },
+          error: {
+            code: "PERMISSION_REQUIRED",
+            message: "This permission is required."
+          }
         });
         return;
       }

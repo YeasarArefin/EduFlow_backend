@@ -8,30 +8,30 @@ import {
   plans,
   paymentRequests,
   subscriptions,
-  workspaceEntitlementOverrides,
+  workspaceEntitlementOverrides
 } from "../schema/subscriptions";
 
 export const platformOwnersRelations = relations(platformOwners, () => ({}));
 
 export const workspaceRolesRelations = relations(workspaceRoles, ({ many }) => ({
   permissions: many(rolePermissions),
-  members: many(workspaceMembers),
+  members: many(workspaceMembers)
 }));
 
 export const permissionsRelations = relations(permissions, ({ many }) => ({
   roles: many(rolePermissions),
-  memberOverrides: many(memberPermissionOverrides),
+  memberOverrides: many(memberPermissionOverrides)
 }));
 
 export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
   workspaceRole: one(workspaceRoles, {
     fields: [rolePermissions.roleCode],
-    references: [workspaceRoles.code],
+    references: [workspaceRoles.code]
   }),
   permission: one(permissions, {
     fields: [rolePermissions.permissionCode],
-    references: [permissions.code],
-  }),
+    references: [permissions.code]
+  })
 }));
 
 export const workspacesRelations = relations(workspaces, ({ many, one }) => ({
@@ -40,70 +40,88 @@ export const workspacesRelations = relations(workspaces, ({ many, one }) => ({
   memberPermissionOverrides: many(memberPermissionOverrides),
   entitlementOverrides: many(workspaceEntitlementOverrides),
   subscriptions: many(subscriptions),
-  paymentRequests: many(paymentRequests),
+  paymentRequests: many(paymentRequests)
 }));
 
 export const workspaceSettingsRelations = relations(workspaceSettings, ({ one }) => ({
   workspace: one(workspaces, {
     fields: [workspaceSettings.workspaceId],
-    references: [workspaces.id],
-  }),
+    references: [workspaces.id]
+  })
 }));
 
 export const workspaceMembersRelations = relations(workspaceMembers, ({ many, one }) => ({
   workspace: one(workspaces, {
     fields: [workspaceMembers.workspaceId],
-    references: [workspaces.id],
+    references: [workspaces.id]
   }),
   workspaceRole: one(workspaceRoles, {
     fields: [workspaceMembers.roleCode],
-    references: [workspaceRoles.code],
+    references: [workspaceRoles.code]
   }),
-  permissionOverrides: many(memberPermissionOverrides),
+  permissionOverrides: many(memberPermissionOverrides)
 }));
 
 export const memberPermissionOverridesRelations = relations(memberPermissionOverrides, ({ one }) => ({
   workspace: one(workspaces, {
     fields: [memberPermissionOverrides.workspaceId],
-    references: [workspaces.id],
+    references: [workspaces.id]
   }),
   member: one(workspaceMembers, {
     fields: [memberPermissionOverrides.memberId],
-    references: [workspaceMembers.id],
+    references: [workspaceMembers.id]
   }),
   permission: one(permissions, {
     fields: [memberPermissionOverrides.permissionCode],
-    references: [permissions.code],
-  }),
+    references: [permissions.code]
+  })
 }));
 
 export const plansRelations = relations(plans, ({ many }) => ({
   features: many(planFeatures),
   subscriptions: many(subscriptions),
-  paymentRequests: many(paymentRequests),
+  paymentRequests: many(paymentRequests)
 }));
 
 export const featuresRelations = relations(features, ({ many }) => ({
   plans: many(planFeatures),
-  workspaceOverrides: many(workspaceEntitlementOverrides),
+  workspaceOverrides: many(workspaceEntitlementOverrides)
 }));
 
 export const planFeaturesRelations = relations(planFeatures, ({ one }) => ({
   plan: one(plans, { fields: [planFeatures.planId], references: [plans.id] }),
-  feature: one(features, { fields: [planFeatures.featureKey], references: [features.key] }),
+  feature: one(features, {
+    fields: [planFeatures.featureKey],
+    references: [features.key]
+  })
 }));
 
 export const workspaceEntitlementOverridesRelations = relations(workspaceEntitlementOverrides, ({ one }) => ({
-  workspace: one(workspaces, { fields: [workspaceEntitlementOverrides.workspaceId], references: [workspaces.id] }),
-  feature: one(features, { fields: [workspaceEntitlementOverrides.featureKey], references: [features.key] }),
+  workspace: one(workspaces, {
+    fields: [workspaceEntitlementOverrides.workspaceId],
+    references: [workspaces.id]
+  }),
+  feature: one(features, {
+    fields: [workspaceEntitlementOverrides.featureKey],
+    references: [features.key]
+  })
 }));
 
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
-  workspace: one(workspaces, { fields: [subscriptions.workspaceId], references: [workspaces.id] }),
-  plan: one(plans, { fields: [subscriptions.planId], references: [plans.id] }),
+  workspace: one(workspaces, {
+    fields: [subscriptions.workspaceId],
+    references: [workspaces.id]
+  }),
+  plan: one(plans, { fields: [subscriptions.planId], references: [plans.id] })
 }));
 
 export const paymentRequestsRelations = relations(paymentRequests, ({ one }) => ({
-  workspace: one(workspaces, { fields: [paymentRequests.workspaceId], references: [workspaces.id] }),
-  plan: one(plans, { fields: [paymentRequests.planId], references: [plans.id] }),
+  workspace: one(workspaces, {
+    fields: [paymentRequests.workspaceId],
+    references: [workspaces.id]
+  }),
+  plan: one(plans, {
+    fields: [paymentRequests.planId],
+    references: [plans.id]
+  })
 }));

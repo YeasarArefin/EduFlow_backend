@@ -6,7 +6,7 @@ export class AppError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly statusCode = 500,
+    public readonly statusCode = 500
   ) {
     super(message);
   }
@@ -18,8 +18,8 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     res.status(400).json({
       error: {
         code: "VALIDATION_ERROR",
-        message: "Request validation failed.",
-      },
+        message: "Request validation failed."
+      }
     });
     return;
   }
@@ -28,8 +28,8 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     res.status(err.statusCode).json({
       error: {
         code: err.code,
-        message: err.message,
-      },
+        message: err.message
+      }
     });
     return;
   }
@@ -39,7 +39,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   res.status(500).json({
     error: {
       code: "INTERNAL_SERVER_ERROR",
-      message: "Something went wrong.",
-    },
+      message: "Something went wrong."
+    }
   });
 };

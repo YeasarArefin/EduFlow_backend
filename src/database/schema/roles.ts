@@ -3,7 +3,7 @@ import { index, integer, pgTable, primaryKey, smallint, text, varchar } from "dr
 export const workspaceRoles = pgTable("workspace_roles", {
   code: smallint("code").primaryKey(),
   name: varchar("name", { length: 50 }).notNull(),
-  description: text("description"),
+  description: text("description")
 });
 
 export const permissions = pgTable("permissions", {
@@ -11,7 +11,7 @@ export const permissions = pgTable("permissions", {
   key: varchar("key", { length: 100 }).notNull().unique(),
   name: varchar("name", { length: 100 }),
   module: varchar("module", { length: 50 }),
-  description: text("description"),
+  description: text("description")
 });
 
 export const rolePermissions = pgTable(
@@ -22,10 +22,10 @@ export const rolePermissions = pgTable(
       .references(() => workspaceRoles.code),
     permissionCode: integer("permission_code")
       .notNull()
-      .references(() => permissions.code),
+      .references(() => permissions.code)
   },
   (table) => [
     primaryKey({ columns: [table.roleCode, table.permissionCode] }),
-    index("role_permissions_permission_idx").on(table.permissionCode),
-  ],
+    index("role_permissions_permission_idx").on(table.permissionCode)
+  ]
 );

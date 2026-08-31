@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   uuid,
   varchar,
-  integer,
+  integer
 } from "drizzle-orm/pg-core";
 import { permissions, workspaceRoles } from "./roles";
 
@@ -21,7 +21,7 @@ export const workspaceStatus = pgEnum("workspace_status", [
   "locked",
   "suspended",
   "scheduled_deletion",
-  "deleted",
+  "deleted"
 ]);
 
 export const memberStatus = pgEnum("member_status", ["invited", "active", "suspended", "removed"]);
@@ -42,12 +42,12 @@ export const workspaces = pgTable(
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     scheduledDeleteAt: timestamp("scheduled_delete_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
     index("workspaces_status_idx").on(table.status),
-    index("workspaces_scheduled_delete_idx").on(table.scheduledDeleteAt),
-  ],
+    index("workspaces_scheduled_delete_idx").on(table.scheduledDeleteAt)
+  ]
 );
 
 export const workspaceSettings = pgTable(
@@ -64,9 +64,9 @@ export const workspaceSettings = pgTable(
     absenceEmailRecipient: varchar("absence_email_recipient", { length: 20 }).notNull().default("guardian"),
     smsDefaultSenderId: varchar("sms_default_sender_id", { length: 100 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
-  (table) => [check("workspace_settings_default_language_chk", sql`${table.defaultLanguage} in ('bn', 'en')`)],
+  (table) => [check("workspace_settings_default_language_chk", sql`${table.defaultLanguage} in ('bn', 'en')`)]
 );
 
 export const workspaceMembers = pgTable(
@@ -85,13 +85,13 @@ export const workspaceMembers = pgTable(
     invitedBy: text("invited_by"),
     joinedAt: timestamp("joined_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
     uniqueIndex("workspace_members_workspace_user_idx").on(table.workspaceId, table.userId),
     index("workspace_members_user_idx").on(table.userId),
-    index("workspace_members_workspace_role_idx").on(table.workspaceId, table.roleCode),
-  ],
+    index("workspace_members_workspace_role_idx").on(table.workspaceId, table.roleCode)
+  ]
 );
 
 export const memberPermissionOverrides = pgTable(
@@ -109,11 +109,11 @@ export const memberPermissionOverrides = pgTable(
       .references(() => permissions.code),
     allowed: boolean("allowed").notNull(),
     createdBy: text("created_by"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
     uniqueIndex("member_permission_overrides_member_permission_idx").on(table.memberId, table.permissionCode),
     index("member_permission_overrides_workspace_idx").on(table.workspaceId),
-    index("member_permission_overrides_permission_idx").on(table.permissionCode),
-  ],
+    index("member_permission_overrides_permission_idx").on(table.permissionCode)
+  ]
 );

@@ -8,10 +8,10 @@ export const platformOwners = pgTable(
     // Better Auth owns the referenced `user` table, introduced with authentication.
     userId: text("user_id").notNull().unique(),
     singletonKey: smallint("singleton_key").notNull().default(1),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
     uniqueIndex("platform_owners_singleton_idx").on(table.singletonKey),
-    check("platform_owners_singleton_chk", sql`${table.singletonKey} = 1`),
-  ],
+    check("platform_owners_singleton_chk", sql`${table.singletonKey} = 1`)
+  ]
 );

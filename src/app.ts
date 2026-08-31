@@ -19,16 +19,16 @@ export function createApp() {
   app.use(
     cors({
       origin: env.FRONTEND_ORIGIN,
-      credentials: true,
-    }),
+      credentials: true
+    })
   );
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
       limit: 300,
       standardHeaders: "draft-8",
-      legacyHeaders: false,
-    }),
+      legacyHeaders: false
+    })
   );
   app.all("/api/auth/*splat", toNodeHandler(auth));
   app.use(express.json());

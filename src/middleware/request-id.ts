@@ -11,11 +11,7 @@ declare global {
   }
 }
 
-export function requestIdMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
+export function requestIdMiddleware(req: Request, res: Response, next: NextFunction) {
   const incomingRequestId = req.header("x-request-id");
   req.requestId = incomingRequestId?.trim() || randomUUID();
   res.setHeader("x-request-id", req.requestId);

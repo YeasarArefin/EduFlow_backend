@@ -13,8 +13,8 @@ describe("API foundation", () => {
 
     expect(response.body).toEqual({
       data: {
-        status: "ok",
-      },
+        status: "ok"
+      }
     });
     expect(response.headers["x-request-id"]).toBeTruthy();
   });
@@ -25,18 +25,18 @@ describe("API foundation", () => {
     expect(response.body).toEqual({
       data: {
         name: "EduFlow API",
-        version: "v1",
-      },
+        version: "v1"
+      }
     });
   });
 
   it("rejects the protected auth context without a session", async () => {
-  const response = await request(app).get("/api/v1/auth-context").expect(401);
+    const response = await request(app).get("/api/v1/auth-context").expect(401);
 
-  expect(response.body.error.code).toBe("UNAUTHENTICATED");
+    expect(response.body.error.code).toBe("UNAUTHENTICATED");
 
-  const pipelineResponse = await request(app).get("/api/v1/access-pipeline-example").expect(401);
-  expect(pipelineResponse.body.error.code).toBe("UNAUTHENTICATED");
+    const pipelineResponse = await request(app).get("/api/v1/access-pipeline-example").expect(401);
+    expect(pipelineResponse.body.error.code).toBe("UNAUTHENTICATED");
   });
 
   it("rejects the protected workspace context without a session", async () => {

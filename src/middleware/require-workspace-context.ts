@@ -1,10 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
-import { z } from "zod";
 import { db } from "../database/client";
 import { workspaceMembers } from "../database/schema/workspaces";
-
-const workspaceIdSchema = z.string().uuid();
+import { workspaceIdSchema } from "../validation/workspace.validation";
 
 export async function requireWorkspaceContext(req: Request, res: Response, next: NextFunction): Promise<void> {
   const userId = req.authenticatedUser?.id;
@@ -12,8 +10,8 @@ export async function requireWorkspaceContext(req: Request, res: Response, next:
     res.status(401).json({
       error: {
         code: "UNAUTHENTICATED",
-        message: "A valid authentication session is required.",
-      },
+        message: "A valid authentication session is required."
+      }
     });
     return;
   }
@@ -23,8 +21,8 @@ export async function requireWorkspaceContext(req: Request, res: Response, next:
     res.status(400).json({
       error: {
         code: "INVALID_WORKSPACE_ID",
-        message: "A valid X-Workspace-Id header is required.",
-      },
+        message: "A valid X-Workspace-Id header is required."
+      }
     });
     return;
   }
@@ -34,7 +32,7 @@ export async function requireWorkspaceContext(req: Request, res: Response, next:
       .select({
         membershipId: workspaceMembers.id,
         workspaceId: workspaceMembers.workspaceId,
-        roleCode: workspaceMembers.roleCode,
+        roleCode: workspaceMembers.roleCode
       })
       .from(workspaceMembers)
       .where(and(eq(workspaceMembers.workspaceId, workspaceIdResult.data), eq(workspaceMembers.userId, userId)))
@@ -44,8 +42,8 @@ export async function requireWorkspaceContext(req: Request, res: Response, next:
       res.status(403).json({
         error: {
           code: "WORKSPACE_MEMBERSHIP_REQUIRED",
-          message: "You are not a member of this workspace.",
-        },
+          message: "You are not a member of this workspace."
+        }
       });
       return;
     }

@@ -16,10 +16,23 @@ const query = (text, values = []) => pool.query(text, values);
 
 describe("workspace RLS policies", () => {
   beforeAll(async () => {
-    await query("INSERT INTO workspaces (id, name, slug) VALUES ($1, $2, $3), ($4, $5, $6)", [workspaceA, "RLS A", `rls-a-${suffix}`, workspaceB, "RLS B", `rls-b-${suffix}`]);
-    await query("INSERT INTO workspace_members (id, workspace_id, user_id, role_code) VALUES ($1, $2, $3, 101), ($4, $5, $6, 101)", [memberA, workspaceA, `rls-user-a-${suffix}`, memberB, workspaceB, `rls-user-b-${suffix}`]);
+    await query("INSERT INTO workspaces (id, name, slug) VALUES ($1, $2, $3), ($4, $5, $6)", [
+      workspaceA,
+      "RLS A",
+      `rls-a-${suffix}`,
+      workspaceB,
+      "RLS B",
+      `rls-b-${suffix}`
+    ]);
+    await query(
+      "INSERT INTO workspace_members (id, workspace_id, user_id, role_code) VALUES ($1, $2, $3, 101), ($4, $5, $6, 101)",
+      [memberA, workspaceA, `rls-user-a-${suffix}`, memberB, workspaceB, `rls-user-b-${suffix}`]
+    );
     await query("INSERT INTO workspace_settings (workspace_id) VALUES ($1), ($2)", [workspaceA, workspaceB]);
-    await query("INSERT INTO member_permission_overrides (workspace_id, member_id, permission_code, allowed) VALUES ($1, $2, 1101, true), ($3, $4, 1101, false)", [workspaceA, memberA, workspaceB, memberB]);
+    await query(
+      "INSERT INTO member_permission_overrides (workspace_id, member_id, permission_code, allowed) VALUES ($1, $2, 1101, true), ($3, $4, 1101, false)",
+      [workspaceA, memberA, workspaceB, memberB]
+    );
   });
 
   afterAll(async () => {
@@ -43,11 +56,19 @@ describe("workspace RLS policies", () => {
       const visibleOverrides = await client.query("SELECT workspace_id FROM member_permission_overrides");
       expect(visibleOverrides.rows).toEqual([{ workspace_id: workspaceA }]);
 
-      const blockedUpdate = await client.query("UPDATE workspace_settings SET receipt_prefix = 'blocked' WHERE workspace_id = $1", [workspaceB]);
+      const blockedUpdate = await client.query(
+        "UPDATE workspace_settings SET receipt_prefix = 'blocked' WHERE workspace_id = $1",
+        [workspaceB]
+      );
       expect(blockedUpdate.rowCount).toBe(0);
-      const sameWorkspaceUpdate = await client.query("UPDATE workspace_settings SET receipt_prefix = 'allowed' WHERE workspace_id = $1", [workspaceA]);
+      const sameWorkspaceUpdate = await client.query(
+        "UPDATE workspace_settings SET receipt_prefix = 'allowed' WHERE workspace_id = $1",
+        [workspaceA]
+      );
       expect(sameWorkspaceUpdate.rowCount).toBe(1);
-      await expect(client.query("INSERT INTO workspace_settings (workspace_id) VALUES ($1)", [workspaceB])).rejects.toMatchObject({ code: "42501" });
+      await expect(
+        client.query("INSERT INTO workspace_settings (workspace_id) VALUES ($1)", [workspaceB])
+      ).rejects.toMatchObject({ code: "42501" });
     } finally {
       await client.query("RESET ROLE");
       client.release();

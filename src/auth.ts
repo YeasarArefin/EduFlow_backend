@@ -10,12 +10,12 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
-    schema: authSchema,
+    schema: authSchema
   }),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 12,
-    maxPasswordLength: 128,
+    maxPasswordLength: 128
   },
-  trustedOrigins: [env.FRONTEND_ORIGIN],
+  trustedOrigins: [env.FRONTEND_ORIGIN]
 });

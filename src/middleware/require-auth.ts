@@ -6,15 +6,15 @@ import { auth } from "../auth";
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
+      headers: fromNodeHeaders(req.headers)
     });
 
     if (!session) {
       res.status(401).json({
         error: {
           code: "UNAUTHENTICATED",
-          message: "A valid authentication session is required.",
-        },
+          message: "A valid authentication session is required."
+        }
       });
       return;
     }

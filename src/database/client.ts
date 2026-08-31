@@ -5,12 +5,12 @@ import { env } from "../config/env";
 import * as schema from "./schema";
 
 export const pool = new Pool({
-  connectionString: env.DATABASE_URL,
+  connectionString: env.DATABASE_URL
 });
 
 export const db = drizzle(pool, {
   schema,
-  casing: "snake_case",
+  casing: "snake_case"
 });
 
 export async function checkDatabaseConnection(): Promise<boolean> {
@@ -22,7 +22,7 @@ export async function checkDatabaseConnection(): Promise<boolean> {
 /** Runs work inside a transaction with a transaction-local tenant context for PostgreSQL RLS. */
 export async function withWorkspaceContext<T>(
   workspaceId: string,
-  callback: (transaction: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<T>,
+  callback: (transaction: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<T>
 ): Promise<T> {
   return db.transaction(async (transaction) => {
     await transaction.execute(sql`select set_config('app.workspace_id', ${workspaceId}, true)`);

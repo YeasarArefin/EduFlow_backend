@@ -21,13 +21,31 @@ describe("payment submission API", () => {
   let userId;
 
   beforeAll(async () => {
-    const signUp = await request(app).post("/api/auth/sign-up/email").send({ name: "Payment User", email, password: "safe-test-password" }).expect(200);
+    const signUp = await request(app)
+      .post("/api/auth/sign-up/email")
+      .send({ name: "Payment User", email, password: "safe-test-password" })
+      .expect(200);
     userId = signUp.body.user.id;
-    const signIn = await request(app).post("/api/auth/sign-in/email").send({ email, password: "safe-test-password" }).expect(200);
+    const signIn = await request(app)
+      .post("/api/auth/sign-in/email")
+      .send({ email, password: "safe-test-password" })
+      .expect(200);
     cookie = signIn.headers["set-cookie"]?.[0];
-    await pool.query("INSERT INTO workspaces (id, name, slug) VALUES ($1, $2, $3)", [workspaceId, "Payment API Workspace", `payment-api-${suffix}`]);
-    await pool.query("INSERT INTO workspace_members (id, workspace_id, user_id, role_code) VALUES ($1, $2, $3, 101)", [membershipId, workspaceId, userId]);
-    await pool.query("INSERT INTO plans (id, name, slug, duration_days, trial_days) VALUES ($1, $2, $3, 30, 0)", [planId, "API Plan", `api-plan-${suffix}`]);
+    await pool.query("INSERT INTO workspaces (id, name, slug) VALUES ($1, $2, $3)", [
+      workspaceId,
+      "Payment API Workspace",
+      `payment-api-${suffix}`
+    ]);
+    await pool.query("INSERT INTO workspace_members (id, workspace_id, user_id, role_code) VALUES ($1, $2, $3, 101)", [
+      membershipId,
+      workspaceId,
+      userId
+    ]);
+    await pool.query("INSERT INTO plans (id, name, slug, duration_days, trial_days) VALUES ($1, $2, $3, 30, 0)", [
+      planId,
+      "API Plan",
+      `api-plan-${suffix}`
+    ]);
   });
 
   afterAll(async () => {
@@ -39,19 +57,36 @@ describe("payment submission API", () => {
     await pool.end();
   });
 
-  const endpoint = () => request(app).post("/api/v1/payment-requests").set("Cookie", cookie).set("X-Workspace-Id", workspaceId);
-  const body = (transactionId = `API-${suffix}-${randomUUID()}`) => ({ planId, amount: 125050, paymentMethod: "bkash", senderNumber: "01700000000", transactionId });
+  const endpoint = () =>
+    request(app).post("/api/v1/payment-requests").set("Cookie", cookie).set("X-Workspace-Id", workspaceId);
+  const body = (transactionId = `API-${suffix}-${randomUUID()}`) => ({
+    planId,
+    amount: 125050,
+    paymentMethod: "bkash",
+    senderNumber: "01700000000",
+    transactionId
+  });
 
   it("creates a pending subscription payment", async () => {
     const response = await endpoint().send(body()).expect(201);
-    expect(response.body.data).toMatchObject({ planId, paymentMethod: "bkash", status: "pending" });
+    expect(response.body.data).toMatchObject({
+      planId,
+      paymentMethod: "bkash",
+      status: "pending"
+    });
     expect(response.body.data).not.toHaveProperty("reviewedAt");
   });
 
   it("rejects invalid bodies with 400", async () => {
-    await endpoint().send({ ...body(), amount: -1 }).expect(400);
-    await endpoint().send({ ...body(), status: "approved" }).expect(400);
-    await endpoint().send({ ...body(), workspaceId }).expect(400);
+    await endpoint()
+      .send({ ...body(), amount: -1 })
+      .expect(400);
+    await endpoint()
+      .send({ ...body(), status: "approved" })
+      .expect(400);
+    await endpoint()
+      .send({ ...body(), workspaceId })
+      .expect(400);
   });
 
   it("rejects duplicate transaction IDs", async () => {
@@ -63,6 +98,11 @@ describe("payment submission API", () => {
 
   it("denies unauthenticated and non-member callers", async () => {
     await request(app).post("/api/v1/payment-requests").set("X-Workspace-Id", workspaceId).send(body()).expect(401);
-    await request(app).post("/api/v1/payment-requests").set("Cookie", cookie).set("X-Workspace-Id", randomUUID()).send(body()).expect(403);
+    await request(app)
+      .post("/api/v1/payment-requests")
+      .set("Cookie", cookie)
+      .set("X-Workspace-Id", randomUUID())
+      .send(body())
+      .expect(403);
   });
 });

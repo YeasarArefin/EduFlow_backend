@@ -5,6 +5,268 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
+    post:
+      summary: Run a Platform Owner subscription lifecycle operation
+      operationId: runPlatformSubscriptionOperation
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/WorkspacePathId" }
+        - {
+            name: operation,
+            in: path,
+            required: true,
+            schema: { type: string, enum: [lock, unlock, renewal-due, expire, schedule-deletion] }
+          }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              {
+                type: object,
+                additionalProperties: false,
+                properties: { scheduledDeleteAt: { type: string, format: date-time } }
+              }
+      responses:
+        "200": { description: Lifecycle operation applied or already satisfied }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        "404": { description: Workspace or subscription not found }
+        "409": { description: Invalid lifecycle transition }
+  /api/v1/workspaces/{workspaceId}/entitlement-overrides:
+    get:
+      summary: List workspace entitlement overrides
+      operationId: listWorkspaceEntitlementOverrides
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }]
+      responses:
+        {
+          "200":
+            {
+              description: Overrides,
+              content:
+                {
+                  application/json:
+                    {
+                      schema:
+                        {
+                          type: object,
+                          properties:
+                            { data: { type: array, items: { $ref: "#/components/schemas/EntitlementOverride" } } }
+                        }
+                    }
+                }
+            },
+          "401": { $ref: "#/components/responses/Unauthenticated" },
+          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
+          "404": { description: Workspace not found }
+        }
+    post:
+      summary: Create a workspace entitlement override
+      operationId: createWorkspaceEntitlementOverride
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: "#/components/schemas/EntitlementOverrideInput" } } }
+        }
+      responses:
+        {
+          "201": { description: Override created },
+          "400": { $ref: "#/components/responses/ValidationError" },
+          "401": { $ref: "#/components/responses/Unauthenticated" },
+          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
+          "404": { description: Workspace not found },
+          "409": { description: Override already exists }
+        }
+  /api/v1/workspaces/{workspaceId}/entitlement-overrides/{id}:
+    patch:
+      summary: Update a workspace entitlement override
+      operationId: updateWorkspaceEntitlementOverride
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }, { $ref: "#/components/parameters/OverrideId" }]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: "#/components/schemas/EntitlementOverridePatch" } } }
+        }
+      responses:
+        {
+          "200": { description: Override updated },
+          "400": { $ref: "#/components/responses/ValidationError" },
+          "401": { $ref: "#/components/responses/Unauthenticated" },
+          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
+          "404": { description: Override not found }
+        }
+    delete:
+      summary: Remove a workspace entitlement override
+      operationId: removeWorkspaceEntitlementOverride
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }, { $ref: "#/components/parameters/OverrideId" }]
+      responses:
+        {
+          "204": { description: Override removed },
+          "401": { $ref: "#/components/responses/Unauthenticated" },
+          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
+          "404": { description: Override not found }
+        }
+  /api/v1/plans:
+    get:
+      summary: List plans
+      operationId: listPlans
+      security: [{ betterAuth: [] }]
+      responses:
+        "200":
+          {
+            description: Plans,
+            content:
+              {
+                application/json:
+                  {
+                    schema:
+                      {
+                        type: object,
+                        required: [data],
+                        properties: { data: { type: array, items: { $ref: "#/components/schemas/Plan" } } }
+                      }
+                  }
+              }
+          }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+    post:
+      summary: Create a plan
+      operationId: createPlan
+      security: [{ betterAuth: [] }]
+      requestBody:
+        { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PlanInput" } } } }
+      responses:
+        "201": { description: Plan created }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        "409": { description: Plan slug already exists }
+  /api/v1/plans/{id}:
+    patch:
+      summary: Update a plan
+      operationId: updatePlan
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/PlanId" }]
+      requestBody:
+        { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PlanInput" } } } }
+      responses:
+        "200": { description: Plan updated }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        "404": { description: Plan not found }
+        "409": { description: Plan slug already exists }
+  /api/v1/plans/{id}/activate:
+    post:
+      summary: Activate a plan
+      operationId: activatePlan
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/PlanId" }]
+      responses:
+        {
+          "200": { description: Plan activated },
+          "401": { $ref: "#/components/responses/Unauthenticated" },
+          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
+          "404": { description: Plan not found }
+        }
+  /api/v1/plans/{id}/deactivate:
+    post:
+      summary: Deactivate a plan without deleting history
+      operationId: deactivatePlan
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/PlanId" }]
+      responses:
+        {
+          "200": { description: Plan deactivated },
+          "401": { $ref: "#/components/responses/Unauthenticated" },
+          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
+          "404": { description: Plan not found }
+        }
+  /api/v1/workspaces/{id}:
+    get:
+      summary: Get a Platform Owner workspace detail
+      operationId: getPlatformWorkspaceDetail
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/WorkspacePathId" }
+      responses:
+        "200":
+          {
+            description: Workspace detail,
+            content:
+              {
+                application/json:
+                  {
+                    schema:
+                      {
+                        type: object,
+                        required: [data],
+                        properties: { data: { $ref: "#/components/schemas/WorkspaceDetail" } }
+                      }
+                  }
+              }
+          }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        "404": { description: Workspace not found }
+  /api/v1/workspaces:
+    get:
+      summary: List workspaces for the Platform Owner
+      operationId: listPlatformWorkspaces
+      security:
+        - betterAuth: []
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: search, in: query, schema: { type: string, minLength: 1, maxLength: 150 } }
+        - {
+            name: subscriptionStatus,
+            in: query,
+            schema: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
+          }
+        - {
+            name: accessStatus,
+            in: query,
+            schema:
+              {
+                type: string,
+                enum:
+                  [
+                    verification_pending,
+                    payment_pending,
+                    trial,
+                    active,
+                    renewal_due,
+                    subscription_expired,
+                    locked,
+                    scheduled_for_deletion,
+                    suspended
+                  ]
+              }
+          }
+      responses:
+        "200":
+          description: Paginated workspace listing with subscription and access summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/WorkspaceSummary" } }
+                  meta: { $ref: "#/components/schemas/PaginationMeta" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
   /api/v1/payment-requests:
     post:
       summary: Submit a manual subscription payment
@@ -12,24 +274,24 @@ paths:
       security:
         - betterAuth: []
       parameters:
-        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: "#/components/parameters/WorkspaceId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePaymentRequest'
+              $ref: "#/components/schemas/CreatePaymentRequest"
       responses:
-        '201':
+        "201":
           description: Pending payment request created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaymentResponse'
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/WorkspaceMembershipRequired' }
-        '409': { $ref: '#/components/responses/DuplicateTransaction' }
+                $ref: "#/components/schemas/PaymentResponse"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
+        "409": { $ref: "#/components/responses/DuplicateTransaction" }
   /api/v1/payment-requests/pending:
     get:
       summary: List pending payment requests
@@ -37,7 +299,7 @@ paths:
       security:
         - betterAuth: []
       responses:
-        '200':
+        "200":
           description: Pending payment requests
           content:
             application/json:
@@ -47,9 +309,9 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: '#/components/schemas/PaymentRequest' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+                    items: { $ref: "#/components/schemas/PaymentRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
   /api/v1/payment-requests/{id}/approve:
     post:
       summary: Approve a pending payment request and activate its subscription
@@ -57,14 +319,14 @@ paths:
       security:
         - betterAuth: []
       parameters:
-        - $ref: '#/components/parameters/PaymentRequestId'
+        - $ref: "#/components/parameters/PaymentRequestId"
       description: Approves the payment and transactionally creates or renews the workspace subscription from the selected plan. Previous current subscriptions are retained as historical rows.
       responses:
-        '200': { $ref: '#/components/responses/ReviewedPayment' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
-        '409': { $ref: '#/components/responses/AlreadyReviewed' }
+        "200": { $ref: "#/components/responses/ReviewedPayment" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        "409": { $ref: "#/components/responses/AlreadyReviewed" }
   /api/v1/payment-requests/{id}/reject:
     post:
       summary: Reject a pending payment request
@@ -72,7 +334,7 @@ paths:
       security:
         - betterAuth: []
       parameters:
-        - $ref: '#/components/parameters/PaymentRequestId'
+        - $ref: "#/components/parameters/PaymentRequestId"
       requestBody:
         required: true
         content:
@@ -84,11 +346,11 @@ paths:
               properties:
                 rejectionReason: { type: string, minLength: 1, maxLength: 500 }
       responses:
-        '200': { $ref: '#/components/responses/ReviewedPayment' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
-        '409': { $ref: '#/components/responses/AlreadyReviewed' }
+        "200": { $ref: "#/components/responses/ReviewedPayment" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        "409": { $ref: "#/components/responses/AlreadyReviewed" }
 components:
   securitySchemes:
     betterAuth:
@@ -96,6 +358,26 @@ components:
       in: cookie
       name: better-auth.session_token
   parameters:
+    WorkspacePathId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OverrideId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PlanId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WorkspacePathId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     WorkspaceId:
       name: X-Workspace-Id
       in: header
@@ -107,6 +389,118 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    EntitlementOverrideInput:
+      type: object
+      required: [featureKey, enabledOverride, limitOverride, reason, expiresAt]
+      additionalProperties: false
+      properties:
+        featureKey: { type: string, minLength: 1, maxLength: 100 }
+        enabledOverride: { type: boolean, nullable: true }
+        limitOverride: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }], nullable: true }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        expiresAt: { type: string, format: date-time, nullable: true }
+    EntitlementOverridePatch:
+      allOf: [{ $ref: "#/components/schemas/EntitlementOverrideInput" }]
+      description: Any subset of override fields.
+    EntitlementOverride:
+      allOf: [{ $ref: "#/components/schemas/EntitlementOverrideInput" }]
+      properties:
+        {
+          id: { type: string, format: uuid },
+          workspaceId: { type: string, format: uuid },
+          limitOverride: { type: string, nullable: true },
+          createdAt: { type: string, format: date-time },
+          updatedAt: { type: string, format: date-time }
+        }
+    PlanInput:
+      type: object
+      additionalProperties: false
+      required: [name, slug, priceMinor, durationDays, trialDays]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+        priceMinor: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }] }
+        durationDays: { type: integer, minimum: 0 }
+        trialDays: { type: integer, minimum: 0 }
+        isActive: { type: boolean }
+        features:
+          {
+            type: array,
+            items:
+              {
+                type: object,
+                required: [featureKey, enabled, limitValue],
+                properties:
+                  {
+                    featureKey: { type: string },
+                    enabled: { type: boolean },
+                    limitValue:
+                      { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }], nullable: true }
+                  },
+                additionalProperties: false
+              }
+          }
+    Plan:
+      allOf:
+        - $ref: "#/components/schemas/PlanInput"
+        - type: object
+          properties:
+            {
+              id: { type: string, format: uuid },
+              priceMinor: { type: string },
+              createdAt: { type: string, format: date-time },
+              updatedAt: { type: string, format: date-time }
+            }
+    WorkspaceDetail:
+      type: object
+      required: [workspace, subscription, access, subscriptionHistory, recentPayments, activeEntitlementOverrides]
+      properties:
+        workspace: { $ref: "#/components/schemas/WorkspaceSummary" }
+        subscription: { nullable: true, type: object }
+        access:
+          {
+            type: object,
+            required: [allowed, status, reason],
+            properties: { allowed: { type: boolean }, status: { type: string }, reason: { type: string } }
+          }
+        subscriptionHistory: { type: array, items: { type: object } }
+        recentPayments: { type: array, items: { $ref: "#/components/schemas/PaymentRequest" } }
+        activeEntitlementOverrides: { type: array, items: { type: object } }
+    PaginationMeta:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+    WorkspaceSummary:
+      type: object
+      required: [id, name, slug, createdAt, subscription, access]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, nullable: true }
+        slug: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        subscription:
+          nullable: true
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
+            plan:
+              {
+                type: object,
+                nullable: true,
+                properties: { id: { type: string, format: uuid }, name: { type: string }, slug: { type: string } }
+              }
+        access:
+          type: object
+          required: [allowed, status, reason]
+          properties:
+            allowed: { type: boolean }
+            status: { type: string }
+            reason: { type: string }
     CreatePaymentRequest:
       type: object
       additionalProperties: false
@@ -135,11 +529,11 @@ components:
       type: object
       required: [data]
       properties:
-        data: { $ref: '#/components/schemas/PaymentRequest' }
+        data: { $ref: "#/components/schemas/PaymentRequest" }
   responses:
     ReviewedPayment:
       description: Payment request reviewed
-      content: { application/json: { schema: { $ref: '#/components/schemas/PaymentResponse' } } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/PaymentResponse" } } }
     ValidationError:
       description: Invalid request
     Unauthenticated:

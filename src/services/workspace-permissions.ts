@@ -27,8 +27,8 @@ export async function hasWorkspacePermission(context: WorkspaceContext, permissi
       and(
         eq(memberPermissionOverrides.workspaceId, context.workspaceId),
         eq(memberPermissionOverrides.memberId, context.membershipId),
-        eq(memberPermissionOverrides.permissionCode, permission.code),
-      ),
+        eq(memberPermissionOverrides.permissionCode, permission.code)
+      )
     )
     .limit(1);
 

@@ -14,7 +14,7 @@ export type CreateSubscriptionPaymentInput = {
 export async function createSubscriptionPaymentRequest(
   workspaceId: string,
   requestedByUserId: string,
-  input: CreateSubscriptionPaymentInput,
+  input: CreateSubscriptionPaymentInput
 ) {
   try {
     const [paymentRequest] = await db
@@ -28,7 +28,7 @@ export async function createSubscriptionPaymentRequest(
         method: input.paymentMethod,
         senderBkashNumber: input.senderNumber,
         transactionId: input.transactionId,
-        status: "pending",
+        status: "pending"
       })
       .returning({
         id: paymentRequests.id,
@@ -38,15 +38,20 @@ export async function createSubscriptionPaymentRequest(
         senderNumber: paymentRequests.senderBkashNumber,
         transactionId: paymentRequests.transactionId,
         status: paymentRequests.status,
-        createdAt: paymentRequests.createdAt,
+        createdAt: paymentRequests.createdAt
       });
 
     return paymentRequest;
   } catch (error) {
-    const databaseError = error && typeof error === "object" ? error as { code?: string; cause?: { code?: string } } : undefined;
+    const databaseError =
+      error && typeof error === "object" ? (error as { code?: string; cause?: { code?: string } }) : undefined;
     const databaseErrorCode = databaseError?.code ?? databaseError?.cause?.code;
     if (databaseErrorCode === "23505") {
-      throw new AppError("PAYMENT_TRANSACTION_ALREADY_EXISTS", "A payment with this transaction ID already exists.", 409);
+      throw new AppError(
+        "PAYMENT_TRANSACTION_ALREADY_EXISTS",
+        "A payment with this transaction ID already exists.",
+        409
+      );
     }
     if (databaseErrorCode === "23503") {
       throw new AppError("PAYMENT_PLAN_NOT_FOUND", "The selected subscription plan was not found.", 400);
@@ -63,25 +68,38 @@ export async function listPendingPaymentRequests() {
     .orderBy(desc(paymentRequests.createdAt));
 }
 
-export async function reviewPaymentRequest(id: string, reviewerUserId: string, status: "approved" | "rejected", rejectionReason?: string) {
+export async function reviewPaymentRequest(
+  id: string,
+  reviewerUserId: string,
+  status: "approved" | "rejected",
+  rejectionReason?: string
+) {
   return db.transaction(async (transaction) => {
-    const [payment] = await transaction
-      .select()
-      .from(paymentRequests)
-      .where(eq(paymentRequests.id, id))
-      .for("update");
+    const [payment] = await transaction.select().from(paymentRequests).where(eq(paymentRequests.id, id)).for("update");
 
     if (!payment || payment.status !== "pending") {
-      throw new AppError("PAYMENT_ALREADY_REVIEWED", "This payment request has already been reviewed or does not exist.", 409);
+      throw new AppError(
+        "PAYMENT_ALREADY_REVIEWED",
+        "This payment request has already been reviewed or does not exist.",
+        409
+      );
     }
 
     const reviewedAt = new Date();
     if (status === "approved") {
       if (payment.purpose !== "subscription" || !payment.planId) {
-        throw new AppError("PAYMENT_SUBSCRIPTION_REQUIRED", "Only subscription payments with a selected plan can be approved.", 400);
+        throw new AppError(
+          "PAYMENT_SUBSCRIPTION_REQUIRED",
+          "Only subscription payments with a selected plan can be approved.",
+          400
+        );
       }
 
-      const [plan] = await transaction.select({ durationDays: plans.durationDays }).from(plans).where(eq(plans.id, payment.planId)).limit(1);
+      const [plan] = await transaction
+        .select({ durationDays: plans.durationDays })
+        .from(plans)
+        .where(eq(plans.id, payment.planId))
+        .limit(1);
       if (!plan) throw new AppError("PAYMENT_PLAN_NOT_FOUND", "The selected subscription plan was not found.", 400);
 
       const expiresAt = new Date(reviewedAt);
@@ -89,20 +107,31 @@ export async function reviewPaymentRequest(id: string, reviewerUserId: string, s
       await transaction
         .update(subscriptions)
         .set({ status: "expired", updatedAt: reviewedAt })
-        .where(and(eq(subscriptions.workspaceId, payment.workspaceId), sql`${subscriptions.status} in ('trial', 'pending', 'active', 'renewal_due')`));
+        .where(
+          and(
+            eq(subscriptions.workspaceId, payment.workspaceId),
+            sql`${subscriptions.status} in ('trial', 'pending', 'active', 'renewal_due')`
+          )
+        );
       await transaction.insert(subscriptions).values({
         workspaceId: payment.workspaceId,
         planId: payment.planId,
         status: "active",
         startsAt: reviewedAt,
         expiresAt,
-        renewalDueAt: expiresAt,
+        renewalDueAt: expiresAt
       });
     }
 
     const [reviewedPayment] = await transaction
       .update(paymentRequests)
-      .set({ status, reviewedAt, reviewedByUserId: reviewerUserId, rejectionReason: rejectionReason ?? null, updatedAt: reviewedAt })
+      .set({
+        status,
+        reviewedAt,
+        reviewedByUserId: reviewerUserId,
+        rejectionReason: rejectionReason ?? null,
+        updatedAt: reviewedAt
+      })
       .where(and(eq(paymentRequests.id, id), eq(paymentRequests.status, "pending")))
       .returning();
     return reviewedPayment;
