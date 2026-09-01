@@ -3,6 +3,7 @@ import { db } from "../database/client";
 import { AppError } from "../middleware/error-handler";
 import { workspaceEntitlementOverrides } from "../database/schema/subscriptions";
 import { workspaces } from "../database/schema/workspaces";
+import { recordAuditLog } from "./audit-log.service";
 
 export type EntitlementOverrideInput = {
   featureKey: string;
@@ -62,13 +63,14 @@ export async function listWorkspaceEntitlementOverrides(workspaceId: string) {
   return rows.map(mapOverride);
 }
 
-export async function createWorkspaceEntitlementOverride(workspaceId: string, input: EntitlementOverrideInput) {
+export async function createWorkspaceEntitlementOverride(workspaceId: string, input: EntitlementOverrideInput, actorUserId: string) {
   await assertWorkspace(workspaceId);
   try {
     const [row] = await db
       .insert(workspaceEntitlementOverrides)
       .values({ workspaceId, ...input })
       .returning();
+    await recordAuditLog(db, { actorUserId, action: "entitlement.created", entityType: "entitlement_override", entityId: row.id, workspaceId, metadata: { featureKey: row.featureKey, reason: row.reason } });
     return mapOverride(row);
   } catch (error) {
     mapDatabaseError(error);
@@ -78,7 +80,8 @@ export async function createWorkspaceEntitlementOverride(workspaceId: string, in
 export async function updateWorkspaceEntitlementOverride(
   workspaceId: string,
   id: string,
-  input: Partial<EntitlementOverrideInput>
+  input: Partial<EntitlementOverrideInput>,
+  actorUserId: string
 ) {
   try {
     return await db.transaction(async (transaction) => {
@@ -90,6 +93,7 @@ export async function updateWorkspaceEntitlementOverride(
         )
         .returning();
       if (!row) throw new AppError("ENTITLEMENT_OVERRIDE_NOT_FOUND", "The entitlement override was not found.", 404);
+      await recordAuditLog(transaction, { actorUserId, action: "entitlement.updated", entityType: "entitlement_override", entityId: row.id, workspaceId, metadata: { featureKey: row.featureKey, reason: row.reason } });
       return mapOverride(row);
     });
   } catch (error) {
@@ -98,10 +102,10 @@ export async function updateWorkspaceEntitlementOverride(
   }
 }
 
-export async function removeWorkspaceEntitlementOverride(workspaceId: string, id: string) {
-  const [row] = await db
-    .delete(workspaceEntitlementOverrides)
-    .where(and(eq(workspaceEntitlementOverrides.id, id), eq(workspaceEntitlementOverrides.workspaceId, workspaceId)))
-    .returning({ id: workspaceEntitlementOverrides.id });
-  if (!row) throw new AppError("ENTITLEMENT_OVERRIDE_NOT_FOUND", "The entitlement override was not found.", 404);
+export async function removeWorkspaceEntitlementOverride(workspaceId: string, id: string, actorUserId: string) {
+  await db.transaction(async (transaction) => {
+    const [row] = await transaction.delete(workspaceEntitlementOverrides).where(and(eq(workspaceEntitlementOverrides.id, id), eq(workspaceEntitlementOverrides.workspaceId, workspaceId))).returning({ id: workspaceEntitlementOverrides.id, featureKey: workspaceEntitlementOverrides.featureKey });
+    if (!row) throw new AppError("ENTITLEMENT_OVERRIDE_NOT_FOUND", "The entitlement override was not found.", 404);
+    await recordAuditLog(transaction, { actorUserId, action: "entitlement.removed", entityType: "entitlement_override", entityId: row.id, workspaceId, metadata: { featureKey: row.featureKey } });
+  });
 }

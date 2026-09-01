@@ -68,6 +68,7 @@ describe("end-to-end subscription lifecycle", () => {
   });
 
   afterAll(async () => {
+    await pool.query("DELETE FROM audit_logs WHERE workspace_id = $1 OR actor_user_id IN ($2, $3)", [workspaceId, ownerId, memberId]);
     await pool.query("DELETE FROM payment_requests WHERE workspace_id = $1", [workspaceId]);
     await pool.query("DELETE FROM subscriptions WHERE workspace_id = $1", [workspaceId]);
     await pool.query("DELETE FROM workspace_members WHERE id = $1", [membershipId]);

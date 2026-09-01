@@ -49,6 +49,7 @@ describe("payment submission API", () => {
   });
 
   afterAll(async () => {
+    await pool.query("DELETE FROM audit_logs WHERE workspace_id = $1 OR actor_user_id = $2", [workspaceId, userId]);
     await pool.query("DELETE FROM payment_requests WHERE workspace_id = $1", [workspaceId]);
     await pool.query("DELETE FROM workspace_members WHERE id = $1", [membershipId]);
     await pool.query("DELETE FROM plans WHERE id = $1", [planId]);

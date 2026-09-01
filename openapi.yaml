@@ -5,6 +5,44 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/activity:
+    get:
+      summary: List platform business activity
+      operationId: listPlatformActivity
+      description: Returns a paginated, privacy-safe summary of auditable payment, plan, entitlement, and lifecycle actions. Sensitive request payloads and credentials are never included.
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: category, in: query, schema: { type: string, enum: [payment, plan, entitlement, lifecycle] } }
+      responses:
+        "200": { description: Paginated platform activity with safe metadata summaries }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+  /api/v1/account/state:
+    get:
+      summary: Get the authenticated account's SaaS routing state
+      operationId: getAccountState
+      description: Database-derived routing state. A workspace membership takes precedence over an approved unused purchase; pending purchases route to payment review.
+      security: [{ betterAuth: [] }]
+      responses:
+        "200":
+          description: Current account routing state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [route]
+                    properties:
+                      route: { type: string, enum: [dashboard, workspace_creation, payment_pending, account] }
+                      workspaceId: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
   /api/v1/workspaces/onboarding-state:
     get:
       summary: Get the current workspace onboarding state
@@ -25,9 +63,9 @@ paths:
         "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
   /api/v1/workspaces/onboard:
     post:
-      summary: Create a workspace in onboarding state
+      summary: Create the workspace for an approved account purchase
       operationId: createWorkspaceOnboard
-      description: Creates only the workspace record. Workspace membership, settings, subscription, and payment setup are deferred to later onboarding steps.
+      description: Consumes the authenticated user's approved unused subscription purchase atomically, then creates the active workspace, Owner membership, default settings, and attached subscription. A user who already belongs to a workspace cannot create another one.
       security: [{ betterAuth: [] }]
       requestBody:
         required: true
@@ -36,7 +74,7 @@ paths:
             schema: { $ref: "#/components/schemas/CreateWorkspaceOnboard" }
       responses:
         "201":
-          description: Pending workspace created
+          description: Active workspace created from the approved purchase
           content:
             application/json:
               schema:
@@ -45,7 +83,7 @@ paths:
                 properties: { data: { $ref: "#/components/schemas/OnboardedWorkspace" } }
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "409": { description: Workspace slug already exists }
+        "409": { description: Workspace already exists, slug already exists, or creation is not unlocked by an approved purchase }
   /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
     post:
       summary: Run a Platform Owner subscription lifecycle operation
@@ -220,6 +258,25 @@ paths:
         "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
         "404": { description: Plan not found }
         "409": { description: Plan slug already exists }
+  /api/v1/plans/features:
+    get:
+      summary: List the Platform feature catalog for plan configuration
+      operationId: listPlatformFeatures
+      security: [{ betterAuth: [] }]
+      responses:
+        "200":
+          description: Feature catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/FeatureCatalogItem" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
   /api/v1/plans/{id}/activate:
     post:
       summary: Activate a plan
@@ -285,6 +342,11 @@ paths:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
         - { name: search, in: query, schema: { type: string, minLength: 1, maxLength: 150 } }
         - {
+            name: workspaceStatus,
+            in: query,
+            schema: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+          }
+        - {
             name: subscriptionStatus,
             in: query,
             schema: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
@@ -309,9 +371,15 @@ paths:
                   ]
               }
           }
+        - {
+            name: lifecycleQueue,
+            in: query,
+            description: Restrict the list to locked and scheduled-for-deletion workspaces for the Platform Owner deletion queue.
+            schema: { type: boolean }
+          }
       responses:
         "200":
-          description: Paginated workspace listing with subscription and access summaries
+          description: Paginated workspace listing with raw workspace, subscription, and effective access summaries
           content:
             application/json:
               schema:
@@ -348,6 +416,44 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
         "409": { $ref: "#/components/responses/DuplicateTransaction" }
+  /api/v1/payment-requests/account:
+    post:
+      summary: Submit a manual subscription payment for the authenticated account
+      operationId: createAccountPaymentRequest
+      description: Creates an account-level pending purchase without creating a workspace. Platform Owner approval unlocks one workspace creation.
+      security: [{ betterAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePaymentRequest" }
+      responses:
+        "201":
+          description: Pending account payment request created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentResponse" }
+        "400": { description: Validation error, unavailable plan, or amount mismatch }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "409": { $ref: "#/components/responses/DuplicateTransaction" }
+  /api/v1/payment-requests/account/latest:
+    get:
+      summary: Get the authenticated account's latest subscription payment
+      operationId: getLatestAccountPaymentRequest
+      security: [{ betterAuth: [] }]
+      responses:
+        "200":
+          description: Latest account-level payment request, or null
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf: [{ $ref: "#/components/schemas/PaymentRequest" }]
+                    nullable: true
+        "401": { $ref: "#/components/responses/Unauthenticated" }
   /api/v1/payment-requests/pending:
     get:
       summary: List pending payment requests
@@ -365,7 +471,21 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: "#/components/schemas/PaymentRequest" }
+                    items: { $ref: "#/components/schemas/PendingPaymentRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+  /api/v1/payment-requests/revenue-overview:
+    get:
+      summary: Get Platform Owner payment and revenue aggregates
+      operationId: getRevenueOverview
+      description: Aggregates payment records in PostgreSQL and returns exact minor-unit amounts as decimal strings.
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Exact payment aggregates, approved revenue by plan, and recent payment activity }
+        "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
   /api/v1/payment-requests/latest:
@@ -393,13 +513,13 @@ paths:
         "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
   /api/v1/payment-requests/{id}/approve:
     post:
-      summary: Approve a pending payment request and activate its subscription
+      summary: Approve a pending payment request
       operationId: approvePaymentRequest
       security:
         - betterAuth: []
       parameters:
         - $ref: "#/components/parameters/PaymentRequestId"
-      description: Approves the payment and transactionally creates or renews the workspace subscription from the selected plan. Previous current subscriptions are retained as historical rows.
+      description: Account-level payments unlock one workspace creation. Workspace renewal payments transactionally create or renew the workspace subscription. Previous current subscriptions are retained as historical rows.
       responses:
         "200": { $ref: "#/components/responses/ReviewedPayment" }
         "400": { $ref: "#/components/responses/ValidationError" }
@@ -571,6 +691,13 @@ components:
               createdAt: { type: string, format: date-time },
               updatedAt: { type: string, format: date-time }
             }
+    FeatureCatalogItem:
+      type: object
+      required: [key, name, description]
+      properties:
+        key: { type: string, maxLength: 100 }
+        name: { type: string, maxLength: 120 }
+        description: { type: string, nullable: true }
     PublicPlan:
       type: object
       required: [id, name, slug, priceMinor, durationDays, trial, features, quotas]
@@ -603,7 +730,22 @@ components:
       type: object
       required: [workspace, subscription, access, subscriptionHistory, recentPayments, activeEntitlementOverrides]
       properties:
-        workspace: { $ref: "#/components/schemas/WorkspaceSummary" }
+        workspace:
+          type: object
+          required: [id, name, slug, status, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string, nullable: true }
+            slug: { type: string, nullable: true }
+            phone: { type: string, nullable: true }
+            email: { type: string, format: email, nullable: true }
+            address: { type: string, nullable: true }
+            status: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            activatedAt: { type: string, format: date-time, nullable: true }
+            lockedAt: { type: string, format: date-time, nullable: true }
+            scheduledDeleteAt: { type: string, format: date-time, nullable: true }
         subscription: { nullable: true, type: object }
         access:
           {
@@ -624,18 +766,24 @@ components:
         totalPages: { type: integer }
     WorkspaceSummary:
       type: object
-      required: [id, name, slug, createdAt, subscription, access]
+      required: [id, name, slug, workspaceStatus, createdAt, subscription, access]
       properties:
         id: { type: string, format: uuid }
         name: { type: string, nullable: true }
         slug: { type: string, nullable: true }
+        workspaceStatus: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
         createdAt: { type: string, format: date-time }
+        lockedAt: { type: string, format: date-time, nullable: true }
+        scheduledDeleteAt: { type: string, format: date-time, nullable: true }
         subscription:
           nullable: true
           type: object
           properties:
             id: { type: string, format: uuid }
             status: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
+            startsAt: { type: string, format: date-time, nullable: true }
+            expiresAt: { type: string, format: date-time, nullable: true }
+            trialEndsAt: { type: string, format: date-time, nullable: true }
             plan:
               {
                 type: object,
@@ -673,6 +821,33 @@ components:
         reviewedByUserId: { type: string, nullable: true }
         rejectionReason: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+    PendingPaymentRequest:
+      type: object
+      required: [id, purpose, amountMinor, paymentMethod, senderNumber, transactionId, status, createdAt, workspace, plan]
+      properties:
+        id: { type: string, format: uuid }
+        purpose: { type: string, enum: [subscription, sms_credit] }
+        amountMinor: { type: string, pattern: '^\\d+$' }
+        paymentMethod: { type: string, enum: [cash, bkash, nagad, rocket, other] }
+        senderNumber: { type: string }
+        transactionId: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        createdAt: { type: string, format: date-time }
+        workspace:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string, nullable: true }
+            slug: { type: string, nullable: true }
+        plan:
+          type: object
+          nullable: true
+          required: [id, name, slug]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            slug: { type: string }
     PaymentResponse:
       type: object
       required: [data]

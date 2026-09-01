@@ -1,10 +1,17 @@
 import type { RequestHandler } from "express";
-import { createPlan, listActivePublicPlans, listPlans, setPlanActive, updatePlan } from "../services/plan.service";
+import { createPlan, listActivePublicPlans, listFeatureCatalog, listPlans, setPlanActive, updatePlan } from "../services/plan.service";
 import { createPlanSchema, planIdSchema, updatePlanSchema } from "../validation/plan.validation";
 
 export const listPlatformPlans: RequestHandler = async (_req, res, next) => {
   try {
     res.status(200).json({ data: await listPlans() });
+  } catch (error) {
+    next(error);
+  }
+};
+export const listPlatformFeatures: RequestHandler = async (_req, res, next) => {
+  try {
+    res.status(200).json({ data: await listFeatureCatalog() });
   } catch (error) {
     next(error);
   }
@@ -28,7 +35,7 @@ export const createPlatformPlan: RequestHandler = async (req, res, next) => {
     return;
   }
   try {
-    res.status(201).json({ data: await createPlan(parsed.data) });
+    res.status(201).json({ data: await createPlan(parsed.data, req.authenticatedUser!.id) });
   } catch (error) {
     next(error);
   }
@@ -46,7 +53,7 @@ export const updatePlatformPlan: RequestHandler = async (req, res, next) => {
     return;
   }
   try {
-    res.status(200).json({ data: await updatePlan(id.data, parsed.data) });
+    res.status(200).json({ data: await updatePlan(id.data, parsed.data, req.authenticatedUser!.id) });
   } catch (error) {
     next(error);
   }
@@ -70,7 +77,7 @@ async function setPlanState(
     return;
   }
   try {
-    res.status(200).json({ data: await setPlanActive(id.data, isActive) });
+    res.status(200).json({ data: await setPlanActive(id.data, isActive, req.authenticatedUser!.id) });
   } catch (error) {
     next(error);
   }

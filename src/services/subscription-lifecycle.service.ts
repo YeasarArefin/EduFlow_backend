@@ -3,6 +3,7 @@ import { db } from "../database/client";
 import { subscriptions } from "../database/schema/subscriptions";
 import { workspaces } from "../database/schema/workspaces";
 import { AppError } from "../middleware/error-handler";
+import { recordAuditLog } from "./audit-log.service";
 
 export type SubscriptionLifecycleTransition = "renewal_due" | "expired" | "locked" | "unlocked" | "scheduled_deletion";
 
@@ -18,7 +19,8 @@ export async function transitionSubscriptionLifecycle(
   workspaceId: string,
   target: SubscriptionLifecycleTransition,
   now = new Date(),
-  scheduledDeleteAt?: Date
+  scheduledDeleteAt?: Date,
+  actorUserId?: string
 ) {
   return db.transaction(async (transaction) => {
     const [subscription] = await transaction
@@ -53,6 +55,7 @@ export async function transitionSubscriptionLifecycle(
         .set({ status: target, updatedAt: now })
         .where(and(eq(subscriptions.id, subscription.id), eq(subscriptions.status, subscription.status)))
         .returning();
+      if (actorUserId) await recordAuditLog(transaction, { actorUserId, action: `lifecycle.${target}`, entityType: "subscription", entityId: updatedSubscription.id, workspaceId, metadata: { status: target } });
       return { subscription: updatedSubscription, workspace };
     }
 
@@ -65,6 +68,7 @@ export async function transitionSubscriptionLifecycle(
         .set({ status: "locked", lockedAt: now, updatedAt: now })
         .where(and(eq(workspaces.id, workspaceId), eq(workspaces.status, "active")))
         .returning();
+      if (actorUserId) await recordAuditLog(transaction, { actorUserId, action: "lifecycle.locked", entityType: "workspace", entityId: workspaceId, workspaceId, metadata: { status: "locked" } });
       return { subscription, workspace: updatedWorkspace };
     }
 
@@ -86,6 +90,7 @@ export async function transitionSubscriptionLifecycle(
         })
         .where(and(eq(workspaces.id, workspaceId), eq(workspaces.status, "locked")))
         .returning();
+      if (actorUserId) await recordAuditLog(transaction, { actorUserId, action: "lifecycle.unlocked", entityType: "workspace", entityId: workspaceId, workspaceId, metadata: { status: "active" } });
       return { subscription, workspace: updatedWorkspace };
     }
 
@@ -101,6 +106,7 @@ export async function transitionSubscriptionLifecycle(
       })
       .where(and(eq(workspaces.id, workspaceId), eq(workspaces.status, "locked")))
       .returning();
+    if (actorUserId) await recordAuditLog(transaction, { actorUserId, action: "lifecycle.scheduled_deletion", entityType: "workspace", entityId: workspaceId, workspaceId, metadata: { status: "scheduled_deletion", scheduledDeleteAt: deletionAt.toISOString() } });
     return { subscription, workspace: updatedWorkspace };
   });
 }

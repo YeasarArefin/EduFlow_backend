@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../database/client";
 import { plans, subscriptions, paymentRequests, workspaceEntitlementOverrides } from "../database/schema/subscriptions";
 import { workspaces } from "../database/schema/workspaces";
@@ -13,6 +13,14 @@ export const workspaceListSubscriptionStatuses = [
   "expired",
   "cancelled",
   "suspended"
+] as const;
+export const workspaceListWorkspaceStatuses = [
+  "pending",
+  "active",
+  "locked",
+  "suspended",
+  "scheduled_deletion",
+  "deleted"
 ] as const;
 export const workspaceListAccessStatuses = [
   "verification_pending",
@@ -30,8 +38,10 @@ export type ListWorkspacesInput = {
   page: number;
   limit: number;
   search?: string;
+  workspaceStatus?: (typeof workspaceListWorkspaceStatuses)[number];
   subscriptionStatus?: (typeof workspaceListSubscriptionStatuses)[number];
   accessStatus?: SubscriptionAccessStatus;
+  lifecycleQueue?: boolean;
 };
 
 const accessStatusExpression = (now: Date) => sql<string>`case
@@ -52,8 +62,10 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
   const filters = [];
   if (input.search)
     filters.push(or(ilike(workspaces.name, `%${input.search}%`), ilike(workspaces.slug, `%${input.search}%`)));
+  if (input.workspaceStatus) filters.push(eq(workspaces.status, input.workspaceStatus));
   if (input.subscriptionStatus) filters.push(eq(subscriptions.status, input.subscriptionStatus));
   if (input.accessStatus) filters.push(eq(accessStatusExpression(now), input.accessStatus));
+  if (input.lifecycleQueue) filters.push(inArray(workspaces.status, ["locked", "scheduled_deletion"]));
   const where = filters.length ? and(...filters) : undefined;
   const [rows, totalRows] = await Promise.all([
     db
@@ -63,6 +75,8 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
         slug: workspaces.slug,
         workspaceStatus: workspaces.status,
         createdAt: workspaces.createdAt,
+        lockedAt: workspaces.lockedAt,
+        scheduledDeleteAt: workspaces.scheduledDeleteAt,
         subscriptionId: subscriptions.id,
         subscriptionStatus: subscriptions.status,
         startsAt: subscriptions.startsAt,
@@ -121,11 +135,17 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
         id: row.id,
         name: row.name,
         slug: row.slug,
+        workspaceStatus: row.workspaceStatus,
         createdAt: row.createdAt,
+        lockedAt: row.lockedAt,
+        scheduledDeleteAt: row.scheduledDeleteAt,
         subscription: row.subscriptionId
           ? {
               id: row.subscriptionId,
               status: row.subscriptionStatus,
+              startsAt: row.startsAt,
+              expiresAt: row.expiresAt,
+              trialEndsAt: row.trialEndsAt,
               plan: row.planId ? { id: row.planId, name: row.planName, slug: row.planSlug } : null
             }
           : null,
@@ -146,6 +166,9 @@ export async function getWorkspaceDetail(workspaceId: string) {
       id: workspaces.id,
       name: workspaces.name,
       slug: workspaces.slug,
+      phone: workspaces.phone,
+      email: workspaces.email,
+      address: workspaces.address,
       status: workspaces.status,
       createdAt: workspaces.createdAt,
       updatedAt: workspaces.updatedAt,
@@ -257,6 +280,9 @@ export async function getWorkspaceDetail(workspaceId: string) {
       id: workspace.id,
       name: workspace.name,
       slug: workspace.slug,
+      phone: workspace.phone,
+      email: workspace.email,
+      address: workspace.address,
       status: workspace.status,
       createdAt: workspace.createdAt,
       updatedAt: workspace.updatedAt,

@@ -55,7 +55,7 @@ export const createPlatformOverride: RequestHandler = async (req, res, next) => 
       data: await createWorkspaceEntitlementOverride(workspaceId.data, {
         ...parsed.data,
         limitOverride: parsed.data.limitOverride
-      })
+      }, req.authenticatedUser!.id)
     });
   } catch (error) {
     next(error);
@@ -75,7 +75,7 @@ export const updatePlatformOverride: RequestHandler = async (req, res, next) => 
   }
   try {
     res.status(200).json({
-      data: await updateWorkspaceEntitlementOverride(workspaceId.data, id.data, parsed.data)
+      data: await updateWorkspaceEntitlementOverride(workspaceId.data, id.data, parsed.data, req.authenticatedUser!.id)
     });
   } catch (error) {
     next(error);
@@ -93,7 +93,7 @@ export const removePlatformOverride: RequestHandler = async (req, res, next) => 
     return;
   }
   try {
-    await removeWorkspaceEntitlementOverride(workspaceId.data, id.data);
+    await removeWorkspaceEntitlementOverride(workspaceId.data, id.data, req.authenticatedUser!.id);
     res.status(204).send();
   } catch (error) {
     next(error);

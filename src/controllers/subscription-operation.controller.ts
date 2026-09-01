@@ -46,7 +46,8 @@ export const runPlatformSubscriptionOperation: RequestHandler = async (req, res,
       workspaceId.data,
       transitions[operation.data],
       new Date(),
-      "scheduledDeleteAt" in schedule.data ? schedule.data.scheduledDeleteAt : undefined
+      "scheduledDeleteAt" in schedule.data ? schedule.data.scheduledDeleteAt : undefined,
+      req.authenticatedUser!.id
     );
     res.status(200).json({
       data: {

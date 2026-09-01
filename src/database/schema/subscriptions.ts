@@ -142,9 +142,7 @@ export const paymentRequests = pgTable(
   "payment_requests",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id),
+    workspaceId: uuid("workspace_id").references(() => workspaces.id),
     requestedByUserId: text("requested_by_user_id"),
     purpose: paymentRequestPurpose("purpose").notNull().default("subscription"),
     planId: uuid("plan_id").references(() => plans.id),
@@ -154,7 +152,7 @@ export const paymentRequests = pgTable(
     transactionId: varchar("transaction_id", { length: 100 }).notNull(),
     status: paymentRequestStatus("status").notNull().default("pending"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
-    reviewedByUserId: text("reviewed_by_user_id").references(() => platformOwners.userId),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => platformOwners.userId, { onUpdate: "cascade" }),
     rejectionReason: text("rejection_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()

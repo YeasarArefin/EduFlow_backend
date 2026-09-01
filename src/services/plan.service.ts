@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../database/client";
 import { features, planFeatures, plans } from "../database/schema/subscriptions";
 import { AppError } from "../middleware/error-handler";
+import { recordAuditLog } from "./audit-log.service";
 
 export type PlanFeatureInput = {
 	featureKey: string;
@@ -72,6 +73,13 @@ export async function listPlans() {
 	);
 }
 
+export async function listFeatureCatalog() {
+	return db
+		.select({ key: features.key, name: features.name, description: features.description })
+		.from(features)
+		.orderBy(asc(features.name));
+}
+
 export type PublicPlan = {
 	id: string;
 	name: string;
@@ -140,7 +148,7 @@ export async function listActivePublicPlans(): Promise<PublicPlan[]> {
 	return [...publicPlans.values()];
 }
 
-export async function createPlan(input: PlanInput) {
+export async function createPlan(input: PlanInput, actorUserId: string) {
 	try {
 		return await db.transaction(async (transaction) => {
 			const [plan] = await transaction
@@ -155,6 +163,7 @@ export async function createPlan(input: PlanInput) {
 				})
 				.returning();
 			await saveFeatures(transaction, plan.id, input.features ?? []);
+			await recordAuditLog(transaction, { actorUserId, action: "plan.created", entityType: "plan", entityId: plan.id, metadata: { planName: plan.name, status: plan.isActive ? "active" : "inactive" } });
 			return mapPlan(
 				plan,
 				input.features?.map((feature) => ({
@@ -178,7 +187,7 @@ export async function createPlan(input: PlanInput) {
 	}
 }
 
-export async function updatePlan(id: string, input: Partial<PlanInput>) {
+export async function updatePlan(id: string, input: Partial<PlanInput>, actorUserId: string) {
 	try {
 		return await db.transaction(async (transaction) => {
 			const { features, ...updates } = input;
@@ -189,6 +198,7 @@ export async function updatePlan(id: string, input: Partial<PlanInput>) {
 				.returning();
 			if (!plan) throw new AppError("PLAN_NOT_FOUND", "The plan was not found.", 404);
 			if (features) await saveFeatures(transaction, id, features);
+			await recordAuditLog(transaction, { actorUserId, action: "plan.updated", entityType: "plan", entityId: id, metadata: { planName: plan.name, status: plan.isActive ? "active" : "inactive" } });
 			const featureRows = await transaction.select().from(planFeatures).where(eq(planFeatures.planId, id));
 			return mapPlan(plan, featureRows);
 		});
@@ -206,8 +216,12 @@ export async function updatePlan(id: string, input: Partial<PlanInput>) {
 	}
 }
 
-export async function setPlanActive(id: string, isActive: boolean) {
-	const [plan] = await db.update(plans).set({ isActive, updatedAt: new Date() }).where(eq(plans.id, id)).returning();
+export async function setPlanActive(id: string, isActive: boolean, actorUserId: string) {
+	const [plan] = await db.transaction(async (transaction) => {
+		const [updatedPlan] = await transaction.update(plans).set({ isActive, updatedAt: new Date() }).where(eq(plans.id, id)).returning();
+		if (updatedPlan) await recordAuditLog(transaction, { actorUserId, action: isActive ? "plan.activated" : "plan.deactivated", entityType: "plan", entityId: id, metadata: { planName: updatedPlan.name, status: isActive ? "active" : "inactive" } });
+		return [updatedPlan];
+	});
 
 	if (!plan) throw new AppError("PLAN_NOT_FOUND", "The plan was not found.", 404);
 

@@ -46,7 +46,10 @@ export const workspaces = pgTable(
   },
   (table) => [
     index("workspaces_status_idx").on(table.status),
-    index("workspaces_scheduled_delete_idx").on(table.scheduledDeleteAt)
+    index("workspaces_scheduled_delete_idx").on(table.scheduledDeleteAt),
+    uniqueIndex("workspaces_created_by_user_unique")
+      .on(table.createdByUserId)
+      .where(sql`${table.createdByUserId} is not null`)
   ]
 );
 

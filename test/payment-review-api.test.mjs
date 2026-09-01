@@ -26,6 +26,7 @@ describe("Platform Owner payment review API", () => {
   let ownerCookie;
   let memberCookie;
   let paymentId;
+  let createdPlanId;
   let platformOwnerFixture;
 
   beforeAll(async () => {
@@ -53,10 +54,13 @@ describe("Platform Owner payment review API", () => {
         .expect(200)
     ).headers["set-cookie"]?.[0];
     platformOwnerFixture = await assignPlatformOwner(pool, ownerId);
-    await pool.query("INSERT INTO workspaces (id, name, slug, status) VALUES ($1, $2, $3, 'active')", [
+    await pool.query("INSERT INTO workspaces (id, name, slug, status, phone, email, address) VALUES ($1, $2, $3, 'active', $4, $5, $6)", [
       workspaceId,
       "Review Workspace",
-      `review-${suffix}`
+      `review-${suffix}`,
+      "01700000000",
+      `workspace-${suffix}@example.test`,
+      "Dhaka"
     ]);
     await pool.query("INSERT INTO workspace_members (workspace_id, user_id, role_code) VALUES ($1, $2, 101)", [
       workspaceId,
@@ -81,6 +85,7 @@ describe("Platform Owner payment review API", () => {
   });
 
   afterAll(async () => {
+    await pool.query("DELETE FROM audit_logs WHERE workspace_id IN ($1, $2) OR actor_user_id IN ($3, $4)", [workspaceId, secondaryWorkspaceId, ownerId, memberId]);
     await pool.query("DELETE FROM payment_requests WHERE workspace_id = $1", [workspaceId]);
     await pool.query("DELETE FROM subscriptions WHERE workspace_id = $1", [workspaceId]);
     await pool.query("DELETE FROM subscriptions WHERE workspace_id = $1", [secondaryWorkspaceId]);
@@ -89,6 +94,7 @@ describe("Platform Owner payment review API", () => {
     await pool.query("DELETE FROM workspace_members WHERE workspace_id = $1", [workspaceId]);
     await pool.query("DELETE FROM workspaces WHERE id = $1", [secondaryWorkspaceId]);
     await pool.query("DELETE FROM plans WHERE id = $1", [planId]);
+    if (createdPlanId) await pool.query("DELETE FROM plans WHERE id = $1", [createdPlanId]);
     await pool.query("DELETE FROM features WHERE key = $1", [featureKey]);
     await pool.query("DELETE FROM workspaces WHERE id = $1", [workspaceId]);
     await restorePlatformOwner(pool, platformOwnerFixture);
@@ -98,11 +104,76 @@ describe("Platform Owner payment review API", () => {
 
   it("lets Platform Owner list pending requests", async () => {
     const response = await request(app).get("/api/v1/payment-requests/pending").set("Cookie", ownerCookie).expect(200);
-    expect(response.body.data.some((payment) => payment.id === paymentId && payment.status === "pending")).toBe(true);
+    expect(response.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: paymentId,
+          status: "pending",
+          workspace: { id: workspaceId, name: "Review Workspace", slug: `review-${suffix}` },
+          plan: { id: planId, name: "Review Plan", slug: `review-plan-${suffix}` }
+        })
+      ])
+    );
   });
 
   it("denies normal workspace users", async () => {
     await request(app).get("/api/v1/payment-requests/pending").set("Cookie", memberCookie).expect(403);
+  });
+
+  it("lists the feature catalog and updates plan feature defaults for public pricing", async () => {
+    const catalog = await request(app).get("/api/v1/plans/features").set("Cookie", ownerCookie).expect(200);
+    expect(catalog.body.data).toEqual(expect.arrayContaining([expect.objectContaining({ key: featureKey, name: "Review Feature" })]));
+    await request(app).get("/api/v1/plans/features").set("Cookie", memberCookie).expect(403);
+
+    const disabled = await request(app)
+      .patch(`/api/v1/plans/${planId}`)
+      .set("Cookie", ownerCookie)
+      .send({ features: [{ featureKey, enabled: false, limitValue: null }] })
+      .expect(200);
+    expect(disabled.body.data.features).toEqual(expect.arrayContaining([expect.objectContaining({ featureKey, enabled: false, limitValue: null })]));
+    expect((await request(app).get("/api/v1/public/plans").expect(200)).body.data.find((plan) => plan.id === planId).features).toEqual([]);
+
+    const enabled = await request(app)
+      .patch(`/api/v1/plans/${planId}`)
+      .set("Cookie", ownerCookie)
+      .send({ features: [{ featureKey, enabled: true, limitValue: "999" }] })
+      .expect(200);
+    expect(enabled.body.data.features).toEqual(expect.arrayContaining([expect.objectContaining({ featureKey, enabled: true, limitValue: "999" })]));
+    expect((await request(app).get("/api/v1/public/plans").expect(200)).body.data.find((plan) => plan.id === planId).features).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: featureKey, defaultLimit: "999" })])
+    );
+  });
+
+  it("creates, edits, and changes public availability without losing price precision", async () => {
+    const priceMinor = "9000000000000000000";
+    const created = await request(app)
+      .post("/api/v1/plans")
+      .set("Cookie", ownerCookie)
+      .send({
+        name: "Precision Plan",
+        slug: `precision-${suffix}`,
+        priceMinor,
+        durationDays: 31,
+        trialDays: 5
+      })
+      .expect(201);
+    createdPlanId = created.body.data.id;
+    expect(created.body.data).toMatchObject({ priceMinor, isActive: true, durationDays: 31, trialDays: 5 });
+
+    const updated = await request(app)
+      .patch(`/api/v1/plans/${createdPlanId}`)
+      .set("Cookie", ownerCookie)
+      .send({ name: "Precision Plus", slug: `precision-plus-${suffix}`, durationDays: 60, trialDays: 10 })
+      .expect(200);
+    expect(updated.body.data).toMatchObject({ name: "Precision Plus", priceMinor, durationDays: 60, trialDays: 10 });
+
+    await request(app).post(`/api/v1/plans/${createdPlanId}/deactivate`).set("Cookie", ownerCookie).expect(200);
+    expect((await request(app).get("/api/v1/public/plans").expect(200)).body.data.some((plan) => plan.id === createdPlanId)).toBe(false);
+
+    await request(app).post(`/api/v1/plans/${createdPlanId}/activate`).set("Cookie", ownerCookie).expect(200);
+    expect((await request(app).get("/api/v1/public/plans").expect(200)).body.data).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: createdPlanId, priceMinor, durationDays: 60, trial: { included: true, days: 10 } })])
+    );
   });
 
   it("lists workspaces with owner-only access, filters, pagination, and summaries", async () => {
@@ -135,9 +206,18 @@ describe("Platform Owner payment review API", () => {
           id: workspaceId,
           name: "Review Workspace",
           slug: `review-${suffix}`,
+          workspaceStatus: "active",
           subscription: null,
           access: { allowed: false, status: "payment_pending" }
         });
+      });
+    await request(app)
+      .get(`/api/v1/workspaces?search=${encodeURIComponent(`review-${suffix}`)}&workspaceStatus=locked`)
+      .set("Cookie", ownerCookie)
+      .expect(200)
+      .then((response) => {
+        expect(response.body.meta.total).toBe(0);
+        expect(response.body.data).toEqual([]);
       });
     await request(app).get("/api/v1/workspaces").set("Cookie", memberCookie).expect(403);
   });
@@ -173,6 +253,9 @@ describe("Platform Owner payment review API", () => {
     expect(workspaces.body.data[0]).toMatchObject({
       subscription: {
         status: "active",
+        startsAt: expect.any(String),
+        expiresAt: expect.any(String),
+        trialEndsAt: null,
         plan: {
           id: planId,
           name: "Review Plan",
@@ -186,7 +269,10 @@ describe("Platform Owner payment review API", () => {
       workspace: {
         id: workspaceId,
         name: "Review Workspace",
-        status: "active"
+        status: "active",
+        phone: "01700000000",
+        email: `workspace-${suffix}@example.test`,
+        address: "Dhaka"
       },
       subscription: {
         id: expect.any(String),
@@ -335,6 +421,55 @@ describe("Platform Owner payment review API", () => {
       status: "pending",
       reviewed_at: null
     });
+  });
+
+  it("reports exact revenue and privacy-safe activity for Platform Owner actions", async () => {
+    const revenue = await request(app)
+      .get("/api/v1/payment-requests/revenue-overview")
+      .set("Cookie", ownerCookie)
+      .expect(200);
+    expect(revenue.body.data.byPlan).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          plan: expect.objectContaining({ id: planId }),
+          revenueMinor: "50000",
+          approvedCount: 1
+        })
+      ])
+    );
+
+    const activity = await request(app)
+      .get("/api/v1/activity?limit=100")
+      .set("Cookie", ownerCookie)
+      .expect(200);
+    const actions = activity.body.data.map((entry) => entry.action);
+    expect(actions).toEqual(expect.arrayContaining([
+      "payment.approved",
+      "payment.rejected",
+      "plan.updated",
+      "plan.deactivated",
+      "entitlement.created",
+      "entitlement.updated",
+      "entitlement.removed"
+    ]));
+    expect(activity.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actor: expect.objectContaining({ id: ownerId, email: ownerEmail }),
+          workspace: expect.objectContaining({ id: workspaceId }),
+          metadataSummary: expect.anything()
+        })
+      ])
+    );
+    expect(JSON.stringify(activity.body.data)).not.toContain("01700000000");
+    expect(JSON.stringify(activity.body.data)).not.toContain(`REVIEW-${suffix}`);
+    const filtered = await request(app)
+      .get(`/api/v1/activity?category=entitlement&search=${encodeURIComponent(`review-${suffix}`)}&page=1&limit=1`)
+      .set("Cookie", ownerCookie)
+      .expect(200);
+    expect(filtered.body).toMatchObject({ meta: { page: 1, limit: 1, total: 3, totalPages: 3 } });
+    expect(filtered.body.data[0].action).toMatch(/^entitlement\./);
+    await request(app).get("/api/v1/activity").set("Cookie", memberCookie).expect(403);
   });
 
   it("returns not found for an unknown workspace", async () => {

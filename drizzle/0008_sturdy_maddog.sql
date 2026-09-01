@@ -1,0 +1,2 @@
+ALTER TABLE "payment_requests" ALTER COLUMN "workspace_id" DROP NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "workspaces_created_by_user_unique" ON "workspaces" USING btree ("created_by_user_id") WHERE "workspaces"."created_by_user_id" is not null;
