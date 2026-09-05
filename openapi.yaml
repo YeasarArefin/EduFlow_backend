@@ -84,6 +84,216 @@ paths:
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "409": { description: Workspace already exists, slug already exists, or creation is not unlocked by an approved purchase }
+  /api/v1/workspaces/dashboard-summary:
+    get:
+      summary: Get the current workspace dashboard summary
+      operationId: getWorkspaceDashboardSummary
+      description: Returns the authenticated member's own workspace identity, access state, current plan dates, effective feature entitlements, membership count, and latest subscription-payment status. The workspace is resolved only from the verified X-Workspace-Id membership context.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      responses:
+        "200":
+          description: Current workspace dashboard information
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties: { data: { $ref: "#/components/schemas/WorkspaceDashboardSummary" } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
+        "404": { description: Workspace not found }
+  /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
+  /api/v1/teachers:
+    get:
+      summary: List workspace teachers
+      operationId: listTeachers
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      responses: { "200": { description: Paginated teachers }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" } }
+    post:
+      summary: Create a workspace teacher
+      operationId: createTeacher
+      security: [{ betterAuth: [] }]
+      responses: { "201": { description: Teacher created }, "400": { $ref: "#/components/responses/ValidationError" }, "409": { description: Teacher code already exists in this workspace } }
+  /api/v1/teachers/{id}:
+    get: { summary: Get workspace teacher, operationId: getTeacher, security: [{ betterAuth: [] }], responses: { "200": { description: Teacher }, "404": { description: Teacher not found } } }
+    patch: { summary: Update or reactivate workspace teacher, operationId: updateTeacher, security: [{ betterAuth: [] }], responses: { "200": { description: Teacher updated }, "409": { description: Teacher code already exists in this workspace } } }
+    delete: { summary: Archive workspace teacher, operationId: archiveTeacher, security: [{ betterAuth: [] }], responses: { "200": { description: Teacher archived } } }
+  /api/v1/batches:
+    get:
+      summary: List workspace batches
+      operationId: listBatches
+      description: Returns a paginated, search-filtered list scoped to the verified workspace context. Requires active subscription access and batches.view permission.
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: search, in: query, schema: { type: string, minLength: 1, maxLength: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [active, inactive, archived] } }
+      responses:
+        "200": { $ref: "#/components/responses/BatchList" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/BatchAccessRequired" }
+    post:
+      summary: Create a workspace batch profile
+      operationId: createBatch
+      description: Creates a batch with workspace-owned academic references. The optional start date is a calendar date. Teacher and student assignments are intentionally excluded.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateBatch" } } } }
+      responses:
+        "201": { $ref: "#/components/responses/BatchResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/BatchAccessRequired" }
+        "409": { description: A batch with this name already exists in this workspace }
+  /api/v1/batches/{id}:
+    get:
+      summary: Get workspace batch detail
+      operationId: getBatch
+      description: Returns the batch profile and its academic labels, all scoped to the verified workspace.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
+      responses: { "200": { $ref: "#/components/responses/BatchResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+    patch:
+      summary: Update or reactivate a workspace batch profile
+      operationId: updateBatch
+      description: Updates batch profile values. Teacher and student assignments are intentionally excluded.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateBatch" } } } }
+      responses: { "200": { $ref: "#/components/responses/BatchResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace }, "409": { description: A batch with this name already exists in this workspace } }
+    delete:
+      summary: Archive a workspace batch
+      operationId: archiveBatch
+      description: Soft-archives the batch by setting its status to archived; no batch profile data is hard-deleted.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
+      responses: { "200": { $ref: "#/components/responses/BatchResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+  /api/v1/batches/{id}/teachers:
+    get:
+      summary: List teachers assigned to a batch
+      operationId: listBatchTeachers
+      description: Returns teachers assigned to the verified workspace batch, with the optional primary-teacher flag.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
+      responses: { "200": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+    post:
+      summary: Assign a teacher to a batch
+      operationId: assignBatchTeacher
+      description: Assigns one workspace-owned teacher. A teacher can be assigned once per batch; setting isPrimary replaces any existing primary teacher.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AssignBatchTeacher" } } } }
+      responses: { "201": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch or teacher not found in this workspace }, "409": { description: Teacher is already assigned to this batch } }
+  /api/v1/batches/{id}/teachers/{teacherId}:
+    patch:
+      summary: Set or clear a batch primary teacher
+      operationId: updateBatchTeacher
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateBatchTeacher" } } } }
+      responses: { "200": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch teacher assignment not found } }
+    delete:
+      summary: Remove a teacher from a batch
+      operationId: removeBatchTeacher
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch teacher assignment not found } }
+  /api/v1/batches/{id}/students:
+    get:
+      summary: List students enrolled in a batch
+      operationId: listBatchStudents
+      description: Returns students enrolled in the verified workspace batch with customized fee information and status.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
+      responses: { "200": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+    post:
+      summary: Enroll a student into a batch
+      operationId: enrollBatchStudent
+      description: Enrolls an active workspace student into the batch with optional fee overrides or discounts.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/EnrollStudent" } } } }
+      responses: { "201": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch or student not found in this workspace }, "409": { description: Student is already actively enrolled in this batch } }
+  /api/v1/batches/{id}/students/{enrollmentId}:
+    patch:
+      summary: Update or archive/reactivate student enrollment
+      operationId: updateBatchEnrollment
+      description: Updates student fee configuration, joined date, or status (active, inactive, archived).
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateEnrollment" } } } }
+      responses: { "200": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Student enrollment not found in this batch } }
+    delete:
+      summary: Archive a student's batch enrollment
+      operationId: archiveBatchEnrollment
+      description: Archives the enrollment without deleting it, preserving enrollment history.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Student enrollment not found in this batch } }
+  /api/v1/students:
+    get:
+      summary: List workspace students
+      operationId: listStudents
+      description: Returns a paginated, search-filtered list scoped to the verified workspace context. Requires active subscription access and students.view permission.
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: search, in: query, schema: { type: string, minLength: 1, maxLength: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [active, inactive, archived] } }
+      responses:
+        "200": { $ref: "#/components/responses/StudentList" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StudentAccessRequired" }
+    post:
+      summary: Create a workspace student
+      operationId: createStudent
+      description: Creates a student in the verified workspace context. studentCode is unique only within that workspace.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateStudent" } } } }
+      responses:
+        "201": { $ref: "#/components/responses/StudentResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StudentAccessRequired" }
+        "409": { description: A student code already exists in this workspace }
+  /api/v1/students/{id}:
+    get:
+      summary: Get a workspace student
+      operationId: getStudent
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
+      responses: { "200": { $ref: "#/components/responses/StudentResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace } }
+  /api/v1/students/{id}/enrollments:
+    get:
+      summary: List a student's batch enrollment history
+      operationId: listStudentEnrollments
+      description: Returns current and historical batch memberships for a student in the verified workspace.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
+      responses: { "200": { $ref: "#/components/responses/StudentEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace } }
+    patch:
+      summary: Update a workspace student
+      operationId: updateStudent
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateStudent" } } } }
+      responses: { "200": { $ref: "#/components/responses/StudentResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace }, "409": { description: A student code already exists in this workspace } }
+    delete:
+      summary: Archive a workspace student
+      operationId: archiveStudent
+      description: Soft-archives the student by setting status to archived; no student record is hard-deleted.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
+      responses: { "200": { $ref: "#/components/responses/StudentResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace } }
   /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
     post:
       summary: Run a Platform Owner subscription lifecycle operation
@@ -587,7 +797,125 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    StudentId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BatchId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
+    CreateBatch:
+      type: object
+      additionalProperties: false
+      required: [name, classLevelId]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        classLevelId: { type: string, format: uuid }
+        mediumId: { type: string, format: uuid, nullable: true }
+        academicGroupId: { type: string, format: uuid, nullable: true }
+        startDate: { type: string, format: date, nullable: true, description: Batch calendar start date }
+        monthlyFee: { oneOf: [{ type: number, minimum: 0 }, { type: string, pattern: '^\d+(?:\.\d{1,2})?$' }], description: Monthly fee in BDT Taka (e.g. 2000 or "2000.50") }
+        monthlyFeeMinor: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\d+$' }], description: Monthly fee in BDT poisha (e.g. 200000) }
+        status: { type: string, enum: [active, inactive, archived] }
+    UpdateBatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: Any non-empty subset of batch profile fields.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        classLevelId: { type: string, format: uuid }
+        mediumId: { type: string, format: uuid, nullable: true }
+        academicGroupId: { type: string, format: uuid, nullable: true }
+        startDate: { type: string, format: date, nullable: true, description: Batch calendar start date }
+        monthlyFee: { oneOf: [{ type: number, minimum: 0 }, { type: string, pattern: '^\d+(?:\.\d{1,2})?$' }], description: Monthly fee in BDT Taka (e.g. 2000 or "2000.50") }
+        monthlyFeeMinor: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\d+$' }], description: Monthly fee in BDT poisha (e.g. 200000) }
+        status: { type: string, enum: [active, inactive] }
+    Batch:
+      type: object
+      required: [id, name, classLevelId, monthlyFeeMinor, status, createdAt, updatedAt, classLevel]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        classLevelId: { type: string, format: uuid }
+        mediumId: { type: string, format: uuid, nullable: true }
+        academicGroupId: { type: string, format: uuid, nullable: true }
+        startDate: { type: string, format: date, nullable: true }
+        monthlyFee: { type: string, description: Monthly fee in BDT Taka }
+        monthlyFeeMinor: { type: string, pattern: '^\d+$', description: Monthly fee in BDT poisha }
+        status: { type: string, enum: [active, inactive, archived] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        classLevel: { type: object, required: [id, name], properties: { id: { type: string, format: uuid }, name: { type: string } } }
+        medium: { type: object, nullable: true, properties: { id: { type: string, format: uuid }, name: { type: string } } }
+        academicGroup: { type: object, nullable: true, properties: { id: { type: string, format: uuid }, name: { type: string } } }
+    AssignBatchTeacher:
+      type: object
+      additionalProperties: false
+      required: [teacherId]
+      properties:
+        teacherId: { type: string, format: uuid }
+        isPrimary: { type: boolean, default: false }
+    UpdateBatchTeacher:
+      type: object
+      additionalProperties: false
+      required: [isPrimary]
+      properties:
+        isPrimary: { type: boolean }
+    BatchTeacher:
+      type: object
+      required: [id, teacherId, teacherCode, name, status, isPrimary, assignedAt]
+      properties:
+        id: { type: string, format: uuid }
+        teacherId: { type: string, format: uuid }
+        teacherCode: { type: string }
+        name: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        status: { type: string, enum: [active, inactive, archived] }
+        isPrimary: { type: boolean }
+        assignedAt: { type: string, format: date-time }
+    CreateStudent:
+      type: object
+      additionalProperties: false
+      required: [studentCode, fullName]
+      properties:
+        studentCode: { type: string, minLength: 1, maxLength: 30 }
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        phone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        guardianName: { type: string, nullable: true, maxLength: 150 }
+        guardianPhone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        address: { type: string, nullable: true, maxLength: 2000 }
+        gender: { type: string, nullable: true, enum: [male, female, other] }
+        admissionDate: { type: string, nullable: true, format: date }
+        status: { type: string, enum: [active, inactive, archived] }
+        notes: { type: string, nullable: true, maxLength: 5000 }
+    UpdateStudent:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        studentCode: { type: string, minLength: 1, maxLength: 30 }
+        fullName: { type: string, minLength: 1, maxLength: 150 }
+        phone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        guardianName: { type: string, nullable: true, maxLength: 150 }
+        guardianPhone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        address: { type: string, nullable: true, maxLength: 2000 }
+        gender: { type: string, nullable: true, enum: [male, female, other] }
+        admissionDate: { type: string, nullable: true, format: date }
+        status: { type: string, enum: [active, inactive, archived] }
+        notes: { type: string, nullable: true, maxLength: 5000 }
+    Student:
+      allOf: [{ $ref: "#/components/schemas/CreateStudent" }]
+      required: [id, studentCode, fullName, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     WorkspaceOnboardingState:
       type: object
       required: [step, workspaceStatus, paymentPending, access]
@@ -797,6 +1125,57 @@ components:
             allowed: { type: boolean }
             status: { type: string }
             reason: { type: string }
+    WorkspaceDashboardSummary:
+      type: object
+      required: [workspace, access, subscription, memberCount, entitlements, latestPayment]
+      properties:
+        workspace:
+          type: object
+          required: [id, name, status]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string, nullable: true }
+            status: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+        access:
+          type: object
+          required: [allowed, status, reason]
+          properties:
+            allowed: { type: boolean }
+            status: { type: string, enum: [verification_pending, payment_pending, trial, active, renewal_due, subscription_expired, locked, scheduled_for_deletion, suspended] }
+            reason: { type: string }
+        subscription:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/SubscriptionDashboardStatus" }]
+        memberCount: { type: integer, minimum: 0 }
+        entitlements:
+          type: array
+          items:
+            type: object
+            required: [key, enabled, limit]
+            properties:
+              key: { type: string }
+              enabled: { type: boolean }
+              limit: { type: string, nullable: true, description: Integer limit serialized as a string. }
+        latestPayment:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/PaymentDashboardStatus" }]
+    SubscriptionDashboardStatus:
+      type: object
+      required: [status, planName, startsAt, expiresAt, trialEndsAt, renewalDueAt]
+      properties:
+        status: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
+        planName: { type: string, nullable: true }
+        startsAt: { type: string, format: date-time, nullable: true }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        trialEndsAt: { type: string, format: date-time, nullable: true }
+        renewalDueAt: { type: string, format: date-time, nullable: true }
+    PaymentDashboardStatus:
+      type: object
+      required: [status, createdAt, reviewedAt]
+      properties:
+        status: { type: string, enum: [pending, approved, rejected] }
+        createdAt: { type: string, format: date-time }
+        reviewedAt: { type: string, format: date-time, nullable: true }
     CreatePaymentRequest:
       type: object
       additionalProperties: false
@@ -853,7 +1232,74 @@ components:
       required: [data]
       properties:
         data: { $ref: "#/components/schemas/PaymentRequest" }
+    EnrollStudent:
+      type: object
+      required: [studentId]
+      properties:
+        studentId: { type: string, format: uuid }
+        joinedAt: { type: string, format: date, nullable: true }
+        feeOverrideMinor: { type: string, pattern: '^\\d+$', nullable: true }
+        discountMinor: { type: string, pattern: '^\\d+$', nullable: true }
+    UpdateEnrollment:
+      type: object
+      properties:
+        joinedAt: { type: string, format: date, nullable: true }
+        feeOverrideMinor: { type: string, pattern: '^\\d+$', nullable: true }
+        discountMinor: { type: string, pattern: '^\\d+$', nullable: true }
+        status: { type: string, enum: [active, inactive, completed, cancelled, archived] }
+    BatchEnrollment:
+      type: object
+      required: [id, studentId, studentCode, name, joinedAt, feeOverrideMinor, discountMinor, status]
+      properties:
+        id: { type: string, format: uuid }
+        studentId: { type: string, format: uuid }
+        studentCode: { type: string }
+        name: { type: string }
+        phone: { type: string, nullable: true }
+        joinedAt: { type: string, format: date, nullable: true }
+        feeOverrideMinor: { type: string, pattern: '^\\d+$', nullable: true }
+        discountMinor: { type: string, pattern: '^\\d+$', nullable: true }
+        status: { type: string, enum: [active, inactive, completed, cancelled, archived] }
+    StudentEnrollment:
+      type: object
+      required: [id, batchId, batchName, joinedAt, feeOverrideMinor, discountMinor, status]
+      properties:
+        id: { type: string, format: uuid }
+        batchId: { type: string, format: uuid }
+        batchName: { type: string }
+        joinedAt: { type: string, format: date }
+        feeOverrideMinor: { type: string, pattern: '^\\d+$', nullable: true }
+        discountMinor: { type: string, pattern: '^\\d+$', nullable: true }
+        status: { type: string, enum: [active, inactive, completed, cancelled, archived] }
   responses:
+    BatchEnrollmentResponse:
+      description: Student enrollment detail
+      content: { application/json: { schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/BatchEnrollment" } } } } }
+    BatchEnrollmentsResponse:
+      description: Students enrolled in a batch
+      content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/BatchEnrollment" } } } } } }
+    StudentEnrollmentsResponse:
+      description: Current and historical batch memberships for a student
+      content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/StudentEnrollment" } } } } } }
+    BatchResponse:
+      description: Batch profile with academic labels
+      content: { application/json: { schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/Batch" } } } } }
+    BatchTeachersResponse:
+      description: Teachers assigned to a batch
+      content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/BatchTeacher" } } } } } }
+    BatchList:
+      description: Paginated workspace batches
+      content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/Batch" } }, meta: { $ref: "#/components/schemas/PaginationMeta" } } } }
+    BatchAccessRequired:
+      description: Workspace membership, active subscription, or required batch permission is missing
+    StudentResponse:
+      description: Student record
+      content: { application/json: { schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/Student" } } } } }
+    StudentList:
+      description: Paginated workspace students
+      content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/Student" } }, meta: { $ref: "#/components/schemas/PaginationMeta" } } } }
+    StudentAccessRequired:
+      description: Workspace membership, active subscription, or required student permission is missing
     ReviewedPayment:
       description: Payment request reviewed
       content: { application/json: { schema: { $ref: "#/components/schemas/PaymentResponse" } } }

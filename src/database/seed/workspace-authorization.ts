@@ -62,6 +62,34 @@ const permissionRows = [
     description: "Import student records."
   },
   {
+    code: 1201,
+    key: "batches.view",
+    name: "View batches",
+    module: "batches",
+    description: "View batch profiles."
+  },
+  {
+    code: 1202,
+    key: "batches.create",
+    name: "Create batches",
+    module: "batches",
+    description: "Create batch profiles."
+  },
+  {
+    code: 1203,
+    key: "batches.update",
+    name: "Update batches",
+    module: "batches",
+    description: "Update batch profiles."
+  },
+  {
+    code: 1204,
+    key: "batches.archive",
+    name: "Archive batches",
+    module: "batches",
+    description: "Archive batch profiles."
+  },
+  {
     code: 1301,
     key: "attendance.view",
     name: "View attendance",

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createWorkspaceOnboard,
+  getWorkspaceDashboard,
   getWorkspaceOnboardState,
   getPlatformWorkspaceDetail,
   listPlatformWorkspaces
@@ -19,6 +20,7 @@ import { requireWorkspaceContext } from "../../middleware/require-workspace-cont
 export const workspaceRoutes = Router();
 workspaceRoutes.post("/onboard", requireAuth, createWorkspaceOnboard);
 workspaceRoutes.get("/onboarding-state", requireAuth, requireWorkspaceContext, getWorkspaceOnboardState);
+workspaceRoutes.get("/dashboard-summary", requireAuth, requireWorkspaceContext, getWorkspaceDashboard);
 
 workspaceRoutes.use(requireAuth, requirePlatformOwner);
 workspaceRoutes.get("/", listPlatformWorkspaces);

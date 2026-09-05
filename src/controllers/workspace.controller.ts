@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { getWorkspaceDetail, listWorkspaces } from "../services/workspace-list.service";
 import { createWorkspaceOnboarding } from "../services/workspace-onboarding.service";
 import { getWorkspaceOnboardingState } from "../services/workspace-onboarding-state.service";
+import { getWorkspaceDashboardSummary } from "../services/workspace-dashboard.service";
 import {
   createWorkspaceOnboardingSchema,
   workspaceIdSchema,
@@ -53,6 +54,24 @@ export const getWorkspaceOnboardState: RequestHandler = async (req, res, next) =
 
   try {
     res.status(200).json({ data: await getWorkspaceOnboardingState(context.workspaceId) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getWorkspaceDashboard: RequestHandler = async (req, res, next) => {
+  const context = req.workspaceContext;
+  if (!context) {
+    res.status(401).json({ error: { code: "UNAUTHENTICATED", message: "A valid authentication session is required." } });
+    return;
+  }
+  try {
+    const summary = await getWorkspaceDashboardSummary(context.workspaceId);
+    if (!summary) {
+      res.status(404).json({ error: { code: "WORKSPACE_NOT_FOUND", message: "The workspace was not found." } });
+      return;
+    }
+    res.status(200).json({ data: summary });
   } catch (error) {
     next(error);
   }

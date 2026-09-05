@@ -1,0 +1,9 @@
+import type { RequestHandler } from "express";
+import { archiveTeacher, createTeacher, getTeacher, listTeachers, updateTeacher } from "../services/teacher.service";
+import { createTeacherSchema, listTeachersQuerySchema, teacherIdSchema, updateTeacherSchema } from "../validation/teacher.validation";
+const invalid = (res: Parameters<RequestHandler>[1]) => res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Request validation failed." } });
+export const createTeacherController: RequestHandler = async (req,res,next) => { const input=createTeacherSchema.safeParse(req.body); if(!input.success)return invalid(res); try{res.status(201).json({data:await createTeacher(req.workspaceContext!.workspaceId,input.data)});}catch(error){next(error);} };
+export const listTeachersController: RequestHandler = async (req,res,next) => { const input=listTeachersQuerySchema.safeParse(req.query); if(!input.success)return invalid(res); try{res.json(await listTeachers(req.workspaceContext!.workspaceId,input.data));}catch(error){next(error);} };
+export const getTeacherController: RequestHandler = async (req,res,next) => { const id=teacherIdSchema.safeParse(req.params.id); if(!id.success)return invalid(res); try{res.json({data:await getTeacher(req.workspaceContext!.workspaceId,id.data)});}catch(error){next(error);} };
+export const updateTeacherController: RequestHandler = async (req,res,next) => { const id=teacherIdSchema.safeParse(req.params.id), input=updateTeacherSchema.safeParse(req.body); if(!id.success||!input.success)return invalid(res); try{res.json({data:await updateTeacher(req.workspaceContext!.workspaceId,id.data,input.data)});}catch(error){next(error);} };
+export const archiveTeacherController: RequestHandler = async (req,res,next) => { const id=teacherIdSchema.safeParse(req.params.id); if(!id.success)return invalid(res); try{res.json({data:await archiveTeacher(req.workspaceContext!.workspaceId,id.data)});}catch(error){next(error);} };

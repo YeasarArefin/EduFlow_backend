@@ -2,6 +2,9 @@ import { relations } from "drizzle-orm";
 import { platformOwners } from "../schema/platform";
 import { permissions, rolePermissions, workspaceRoles } from "../schema/roles";
 import { memberPermissionOverrides, workspaceMembers, workspaceSettings, workspaces } from "../schema/workspaces";
+import { students } from "../schema/students";
+import { batches, batchEnrollments, batchTeachers } from "../schema/batches";
+import { teachers } from "../schema/teachers";
 import {
   features,
   planFeatures,
@@ -40,7 +43,39 @@ export const workspacesRelations = relations(workspaces, ({ many, one }) => ({
   memberPermissionOverrides: many(memberPermissionOverrides),
   entitlementOverrides: many(workspaceEntitlementOverrides),
   subscriptions: many(subscriptions),
-  paymentRequests: many(paymentRequests)
+  paymentRequests: many(paymentRequests),
+  students: many(students),
+  batches: many(batches),
+  batchTeachers: many(batchTeachers),
+  batchEnrollments: many(batchEnrollments)
+}));
+
+export const studentsRelations = relations(students, ({ many, one }) => ({
+  workspace: one(workspaces, { fields: [students.workspaceId], references: [workspaces.id] }),
+  enrollments: many(batchEnrollments),
+}));
+
+export const batchesRelations = relations(batches, ({ many, one }) => ({
+  workspace: one(workspaces, { fields: [batches.workspaceId], references: [workspaces.id] }),
+  teachers: many(batchTeachers),
+  enrollments: many(batchEnrollments),
+}));
+
+export const batchEnrollmentsRelations = relations(batchEnrollments, ({ one }) => ({
+  workspace: one(workspaces, { fields: [batchEnrollments.workspaceId], references: [workspaces.id] }),
+  batch: one(batches, { fields: [batchEnrollments.batchId], references: [batches.id] }),
+  student: one(students, { fields: [batchEnrollments.studentId], references: [students.id] }),
+}));
+
+export const teachersRelations = relations(teachers, ({ many, one }) => ({
+  workspace: one(workspaces, { fields: [teachers.workspaceId], references: [workspaces.id] }),
+  batches: many(batchTeachers),
+}));
+
+export const batchTeachersRelations = relations(batchTeachers, ({ one }) => ({
+  workspace: one(workspaces, { fields: [batchTeachers.workspaceId], references: [workspaces.id] }),
+  batch: one(batches, { fields: [batchTeachers.batchId], references: [batches.id] }),
+  teacher: one(teachers, { fields: [batchTeachers.teacherId], references: [teachers.id] }),
 }));
 
 export const workspaceSettingsRelations = relations(workspaceSettings, ({ one }) => ({

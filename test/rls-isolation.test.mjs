@@ -30,12 +30,17 @@ describe("workspace RLS policies", () => {
     );
     await query("INSERT INTO workspace_settings (workspace_id) VALUES ($1), ($2)", [workspaceA, workspaceB]);
     await query(
+      "INSERT INTO students (workspace_id, student_code, full_name) VALUES ($1, $2, $3), ($4, $5, $6)",
+      [workspaceA, `rls-a-${suffix}`.slice(0, 30), "RLS Student A", workspaceB, `rls-b-${suffix}`.slice(0, 30), "RLS Student B"]
+    );
+    await query(
       "INSERT INTO member_permission_overrides (workspace_id, member_id, permission_code, allowed) VALUES ($1, $2, 1101, true), ($3, $4, 1101, false)",
       [workspaceA, memberA, workspaceB, memberB]
     );
   });
 
   afterAll(async () => {
+    await query("DELETE FROM students WHERE workspace_id IN ($1, $2)", [workspaceA, workspaceB]);
     await query("DELETE FROM member_permission_overrides WHERE workspace_id IN ($1, $2)", [workspaceA, workspaceB]);
     await query("DELETE FROM workspace_members WHERE workspace_id IN ($1, $2)", [workspaceA, workspaceB]);
     await query("DELETE FROM workspace_settings WHERE workspace_id IN ($1, $2)", [workspaceA, workspaceB]);
@@ -55,6 +60,8 @@ describe("workspace RLS policies", () => {
       expect(visibleSettings.rows).toEqual([{ workspace_id: workspaceA }]);
       const visibleOverrides = await client.query("SELECT workspace_id FROM member_permission_overrides");
       expect(visibleOverrides.rows).toEqual([{ workspace_id: workspaceA }]);
+      const visibleStudents = await client.query("SELECT workspace_id FROM students ORDER BY workspace_id");
+      expect(visibleStudents.rows).toEqual([{ workspace_id: workspaceA }]);
 
       const blockedUpdate = await client.query(
         "UPDATE workspace_settings SET receipt_prefix = 'blocked' WHERE workspace_id = $1",
@@ -66,6 +73,8 @@ describe("workspace RLS policies", () => {
         [workspaceA]
       );
       expect(sameWorkspaceUpdate.rowCount).toBe(1);
+      const blockedStudentUpdate = await client.query("UPDATE students SET full_name = 'blocked' WHERE workspace_id = $1", [workspaceB]);
+      expect(blockedStudentUpdate.rowCount).toBe(0);
       await expect(
         client.query("INSERT INTO workspace_settings (workspace_id) VALUES ($1)", [workspaceB])
       ).rejects.toMatchObject({ code: "42501" });

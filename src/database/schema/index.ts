@@ -3,4 +3,8 @@ export * from "./platform";
 export * from "./roles";
 export * from "./workspaces";
 export * from "./subscriptions";
+export * from "./students";
+export * from "./academics";
+export * from "./batches";
+export * from "./teachers";
 export * from "../relations";
