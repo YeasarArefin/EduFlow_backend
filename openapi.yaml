@@ -5,6 +5,136 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/student-fees/enrollments/{enrollmentId}/generate:
+    post:
+      summary: Generate one enrollment's monthly fee snapshot
+      operationId: generateEnrollmentFee
+      description: >-
+        Requires an authenticated active workspace member, subscription access, and fees.generate (1402).
+        Workspace ownership is resolved by the server after validating X-Workspace-Id membership.
+        Generates a full monthly charge for an eligible active enrollment, student, and batch; no proration.
+        The month must overlap enrollment and batch start/end dates and be at or after feeStartMonth when set.
+        Snapshots the enrollment override (including zero), otherwise the batch fee, then caps the enrollment
+        discount at that charge. Legacy poisha sources are converted exactly to decimal BDT taka in PostgreSQL.
+        Existing enrollment/month rows return unchanged even after archival or configuration changes; only the
+        date-sensitive response status is derived at read time. Concurrent retries are safe. Newly inserted
+        records and the fees.generated audit entry commit atomically. No payment or receipt is created.
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GenerateStudentFee" }
+      responses:
+        "201":
+          description: New monthly fee snapshot created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentFeeResponse" }
+        "200":
+          description: Existing monthly fee snapshot returned; no financial or date fields rewritten
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentFeeResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Workspace membership, subscription access, or fees.generate permission required }
+        "404": { description: ENROLLMENT_NOT_FOUND; includes enrollment IDs outside the current workspace }
+        "409": { description: ENROLLMENT_NOT_FEE_ELIGIBLE or FEE_SETTINGS_INVALID (due day must be 1–31 and grace days 0–365) }
+        "429": { description: FEE_GENERATION_RATE_LIMITED; maximum 60 generation requests per workspace per minute, shared with bulk generation. Global IP limits also apply. }
+  /api/v1/student-fees/generate:
+    post:
+      summary: Bulk generate eligible active enrollment fees for a month
+      operationId: bulkGenerateStudentFees
+      description: >-
+        Requires subscription access and fees.generate (1402). Uses the same eligibility, snapshot,
+        decimal BDT, date, and discount rules as single generation. All eligible rows are generated in
+        one transaction with one audit entry when any rows are created. Existing rows are never overwritten.
+        Counts describe currently eligible enrollments; old fees for now-inactive enrollments remain in
+        history but are excluded from these counts. An empty eligible set is a successful no-op.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GenerateStudentFee" }
+      responses:
+        "200":
+          description: Generation counts, including idempotent retries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [feeMonth, eligible, created, existing]
+                    properties:
+                      feeMonth: { $ref: "#/components/schemas/FeeMonth" }
+                      eligible: { type: integer, minimum: 0 }
+                      created: { type: integer, minimum: 0 }
+                      existing: { type: integer, minimum: 0, description: Eligible rows already generated, including concurrent inserts }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Workspace membership, subscription access, or fees.generate permission required }
+        "409": { description: FEE_SETTINGS_INVALID; no rows generated }
+        "429": { description: FEE_GENERATION_RATE_LIMITED; shares the 60 requests per workspace per minute generation limit. Global IP limits also apply. }
+  /api/v1/student-fees:
+    get:
+      summary: List workspace fees by month and optional status
+      operationId: listWorkspaceStudentFees
+      description: >-
+        Requires subscription access and fees.view (1401). Returns only current-workspace snapshots,
+        including history for archived students/enrollments/batches. Status filtering uses the same
+        Bangladesh-date calculation as the response, so overdue rows do not depend on a scheduled job.
+        Ordered by feeMonth descending then id descending. Unknown query fields are rejected.
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { name: feeMonth, in: query, required: true, schema: { $ref: "#/components/schemas/FeeMonth" } }
+        - { $ref: "#/components/parameters/FeeStatusFilter" }
+        - { $ref: "#/components/parameters/FeePage" }
+        - { $ref: "#/components/parameters/FeeLimit" }
+      responses:
+        "200":
+          description: Paginated fee snapshots and matching total
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentFeeListResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Workspace membership, subscription access, or fees.view permission required }
+  /api/v1/students/{id}/fees:
+    get:
+      summary: Get a student's monthly fee history across enrollments
+      operationId: getStudentFeeHistory
+      description: >-
+        Requires subscription access and fees.view (1401), independently of students.view.
+        Uses the same ordering, effective status, decimal string amounts, and pagination as the workspace
+        fee list. Month is optional. Archived history remains visible; a student without fees has an empty list.
+      security: [{ betterAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: "#/components/parameters/StudentId" }
+        - { name: feeMonth, in: query, schema: { $ref: "#/components/schemas/FeeMonth" } }
+        - { $ref: "#/components/parameters/FeeStatusFilter" }
+        - { $ref: "#/components/parameters/FeePage" }
+        - { $ref: "#/components/parameters/FeeLimit" }
+      responses:
+        "200":
+          description: Paginated historical snapshots
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentFeeListResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Workspace membership, subscription access, or fees.view permission required }
+        "404": { description: STUDENT_NOT_FOUND; includes student IDs outside the current workspace }
   /api/v1/activity:
     get:
       summary: List platform business activity
@@ -767,6 +897,18 @@ components:
       in: cookie
       name: better-auth.session_token
   parameters:
+    FeeStatusFilter:
+      name: status
+      in: query
+      schema: { $ref: "#/components/schemas/StudentFeeStatus" }
+    FeePage:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 1000000, default: 1 }
+    FeeLimit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
     WorkspacePathId:
       name: workspaceId
       in: path
@@ -808,6 +950,80 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    FeeMonth:
+      type: string
+      format: date
+      pattern: '^[1-9]\d{3}-\d{2}-01$'
+      example: '2026-09-01'
+      description: Calendar month represented by its first day, from 1000-01-01 through 9998-12-01. Date-only; not a timestamp.
+    GenerateStudentFee:
+      type: object
+      additionalProperties: false
+      required: [feeMonth]
+      properties:
+        feeMonth: { $ref: "#/components/schemas/FeeMonth" }
+    BdtFeeAmount:
+      type: string
+      pattern: '^\d{1,17}\.\d{2}$'
+      example: '1250.50'
+      description: Exact nonnegative BDT taka, backed by NUMERIC(19,2). Always a fixed two-decimal string; never a JS number or poisha value.
+    StudentFeeStatus:
+      type: string
+      enum: [unpaid, partially_paid, paid, overpaid, waived, overdue]
+      description: >-
+        Net charge is expectedAmount minus discountAmount. Priority is overpaid (paid exceeds net),
+        waived (zero net and zero paid), paid (positive net fully paid), overdue (positive due after graceDate
+        in Asia/Dhaka), partially_paid (positive paid and due within grace), then unpaid.
+        GraceDate itself is inclusive. Status is derived on reads; stored status is the generation/write-time state.
+    StudentFee:
+      type: object
+      required: [id, studentId, enrollmentId, feeMonth, expectedAmount, discountAmount, paidAmount, dueAmount, status, dueDate, graceDate, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        studentId: { type: string, format: uuid }
+        enrollmentId: { type: string, format: uuid }
+        feeMonth: { $ref: "#/components/schemas/FeeMonth" }
+        expectedAmount:
+          allOf: [{ $ref: "#/components/schemas/BdtFeeAmount" }]
+          description: Gross historical fee before discount, from enrollment override or batch monthly fee.
+        discountAmount:
+          allOf: [{ $ref: "#/components/schemas/BdtFeeAmount" }]
+          description: Applied enrollment discount, capped at expectedAmount; snapshot preserved.
+        paidAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
+        dueAmount:
+          allOf: [{ $ref: "#/components/schemas/BdtFeeAmount" }]
+          description: PostgreSQL generated amount max(expectedAmount - discountAmount - paidAmount, 0). Overpayments never create negative dues.
+        status: { $ref: "#/components/schemas/StudentFeeStatus" }
+        dueDate:
+          type: string
+          format: date
+          description: Snapshot of workspace due day, clamped to month-end. Missing/null due day or missing settings defaults to month-end.
+        graceDate:
+          type: string
+          format: date
+          description: Snapshot of dueDate plus workspace grace days (zero if settings missing).
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    StudentFeeResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: "#/components/schemas/StudentFee" }
+    StudentFeeListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/StudentFee" }
+        meta:
+          type: object
+          required: [page, limit, total, totalPages]
+          properties:
+            page: { type: integer, minimum: 1 }
+            limit: { type: integer, minimum: 1, maximum: 100 }
+            total: { type: integer, minimum: 0 }
+            totalPages: { type: integer, minimum: 0, description: Zero for an empty result set }
     CreateBatch:
       type: object
       additionalProperties: false

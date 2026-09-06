@@ -57,6 +57,7 @@ export const batchEnrollments = pgTable(
   },
   (table) => [
     index("batch_enrollments_workspace_student_idx").on(table.workspaceId, table.studentId),
+    uniqueIndex("batch_enrollments_id_workspace_student_idx").on(table.id, table.workspaceId, table.studentId),
     index("batch_enrollments_workspace_batch_idx").on(table.workspaceId, table.batchId),
     uniqueIndex("batch_enrollments_one_active_idx").on(table.studentId, table.batchId).where(sql`${table.status} = 'active'`),
     check("batch_enrollments_fee_override_nonnegative_chk", sql`${table.feeOverrideMinor} IS NULL OR ${table.feeOverrideMinor} >= 0`),

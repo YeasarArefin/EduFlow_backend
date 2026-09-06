@@ -7,4 +7,5 @@ export * from "./students";
 export * from "./academics";
 export * from "./batches";
 export * from "./teachers";
+export * from "./fees";
 export * from "../relations";

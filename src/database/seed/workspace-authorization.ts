@@ -1,6 +1,7 @@
 import { db, pool } from "../client";
 import { permissions, rolePermissions, workspaceRoleCodes, workspaceRoles } from "../schema";
 import { seedDevelopmentPlatformOwner } from "./development-platform-owner";
+import { studentFeePermissions } from "../../config/student-fees";
 
 const roles = [
   {
@@ -26,6 +27,8 @@ const roles = [
 ];
 
 const permissionRows = [
+  { ...studentFeePermissions.view, name: "View student fees", module: "fees", description: "View monthly student fee records." },
+  { ...studentFeePermissions.generate, name: "Generate student fees", module: "fees", description: "Generate monthly student fee snapshots." },
   {
     code: 1101,
     key: "students.view",

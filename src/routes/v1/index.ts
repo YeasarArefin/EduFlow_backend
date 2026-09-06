@@ -10,6 +10,7 @@ import { studentRoutes } from "./student.routes";
 import { academicRoutes } from "./academic.routes";
 import { teacherRoutes } from "./teacher.routes";
 import { batchRoutes } from "./batch.routes";
+import { studentFeeRoutes } from "./student-fee.routes";
 
 export const v1Router = Router();
 
@@ -24,3 +25,4 @@ v1Router.use("/students", studentRoutes);
 v1Router.use("/academic", academicRoutes);
 v1Router.use("/teachers", teacherRoutes);
 v1Router.use("/batches", batchRoutes);
+v1Router.use("/student-fees", studentFeeRoutes);

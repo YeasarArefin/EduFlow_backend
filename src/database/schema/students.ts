@@ -28,6 +28,7 @@ export const students = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
+    uniqueIndex("students_id_workspace_idx").on(table.id, table.workspaceId),
     uniqueIndex("students_workspace_code_idx").on(table.workspaceId, table.studentCode),
     index("students_workspace_status_idx").on(table.workspaceId, table.status),
     index("students_workspace_name_idx").on(table.workspaceId, table.fullName),

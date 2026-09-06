@@ -134,6 +134,13 @@
       "when": 1788488139870,
       "tag": "0018_sticky_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788620318626,
+      "tag": "0019_student_fee_foundation",
+      "breakpoints": true
     }
   ]
 }
