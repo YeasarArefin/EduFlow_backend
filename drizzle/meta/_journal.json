@@ -141,6 +141,62 @@
       "when": 1788620318626,
       "tag": "0019_student_fee_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788700000000,
+      "tag": "0020_student_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788799436554,
+      "tag": "0021_attendance_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788800002929,
+      "tag": "0022_attendance_finalization_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788880000000,
+      "tag": "0023_teacher_salary_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788890000000,
+      "tag": "0024_teacher_salary_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788970000000,
+      "tag": "0025_workspace_members",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788980000000,
+      "tag": "0026_lyrical_gabe_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788990000000,
+      "tag": "0027_perfect_runaways",
+      "breakpoints": true
     }
   ]
 }

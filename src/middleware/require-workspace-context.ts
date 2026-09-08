@@ -32,23 +32,30 @@ export async function requireWorkspaceContext(req: Request, res: Response, next:
       .select({
         membershipId: workspaceMembers.id,
         workspaceId: workspaceMembers.workspaceId,
-        roleCode: workspaceMembers.roleCode
+        roleCode: workspaceMembers.roleCode,
+        customRoleId: workspaceMembers.customRoleId,
+        status: workspaceMembers.status
       })
       .from(workspaceMembers)
       .where(and(eq(workspaceMembers.workspaceId, workspaceIdResult.data), eq(workspaceMembers.userId, userId)))
       .limit(1);
 
-    if (!membership) {
+    if (!membership || membership.status !== "active") {
       res.status(403).json({
         error: {
-          code: "WORKSPACE_MEMBERSHIP_REQUIRED",
-          message: "You are not a member of this workspace."
+          code: membership ? "WORKSPACE_MEMBER_INACTIVE" : "WORKSPACE_MEMBERSHIP_REQUIRED",
+          message: membership ? "Your membership in this workspace is inactive." : "You are not a member of this workspace."
         }
       });
       return;
     }
 
-    req.workspaceContext = membership;
+    req.workspaceContext = {
+      membershipId: membership.membershipId,
+      workspaceId: membership.workspaceId,
+      roleCode: membership.roleCode,
+      customRoleId: membership.customRoleId
+    };
     next();
   } catch (error) {
     next(error);

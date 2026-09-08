@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { studentFeePermissions } from "../../config/student-fees";
 import { studentFeeHistoryController } from "../../controllers/student-fee.controller";
+import { listStudentPaymentsController } from "../../controllers/student-payment.controller";
 import { archiveStudentController, createStudentController, getStudentController, listStudentEnrollmentsController, listStudentsController, updateStudentController } from "../../controllers/student.controller";
 import { requireAuth } from "../../middleware/require-auth";
 import { requirePermission } from "../../middleware/require-permission";
@@ -13,6 +14,8 @@ studentRoutes.get("/", requirePermission("students.view"), listStudentsControlle
 studentRoutes.post("/", requirePermission("students.create"), createStudentController);
 studentRoutes.get("/:id/enrollments", requirePermission("students.view"), listStudentEnrollmentsController);
 studentRoutes.get("/:id/fees", requirePermission(studentFeePermissions.view.key), studentFeeHistoryController);
+studentRoutes.get("/:id/payments", requirePermission(studentFeePermissions.view.key), listStudentPaymentsController);
 studentRoutes.get("/:id", requirePermission("students.view"), getStudentController);
 studentRoutes.patch("/:id", requirePermission("students.update"), updateStudentController);
 studentRoutes.delete("/:id", requirePermission("students.archive"), archiveStudentController);
+

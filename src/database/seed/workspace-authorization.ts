@@ -2,6 +2,7 @@ import { db, pool } from "../client";
 import { permissions, rolePermissions, workspaceRoleCodes, workspaceRoles } from "../schema";
 import { seedDevelopmentPlatformOwner } from "./development-platform-owner";
 import { studentFeePermissions } from "../../config/student-fees";
+import { attendancePermissions } from "../../config/attendance";
 
 const roles = [
   {
@@ -27,9 +28,18 @@ const roles = [
 ];
 
 const permissionRows = [
+  {
+    code: 1601,
+    key: "members.manage",
+    name: "Manage workspace members",
+    module: "members",
+    description: "Add, update, suspend, and remove workspace members."
+  },
   { ...studentFeePermissions.view, name: "View student fees", module: "fees", description: "View monthly student fee records." },
   { ...studentFeePermissions.generate, name: "Generate student fees", module: "fees", description: "Generate monthly student fee snapshots." },
+  { ...studentFeePermissions.collect, name: "Collect student fees", module: "fees", description: "Record student fee payments and receipts." },
   {
+
     code: 1101,
     key: "students.view",
     name: "View students",
@@ -93,29 +103,25 @@ const permissionRows = [
     description: "Archive batch profiles."
   },
   {
-    code: 1301,
-    key: "attendance.view",
+    ...attendancePermissions.view,
     name: "View attendance",
     module: "attendance",
     description: "View attendance records."
   },
   {
-    code: 1302,
-    key: "attendance.mark",
+    ...attendancePermissions.mark,
     name: "Mark attendance",
     module: "attendance",
     description: "Mark attendance."
   },
   {
-    code: 1303,
-    key: "attendance.update",
+    ...attendancePermissions.update,
     name: "Update attendance",
     module: "attendance",
     description: "Update attendance records."
   },
   {
-    code: 1304,
-    key: "attendance.finalize",
+    ...attendancePermissions.finalize,
     name: "Finalize attendance",
     module: "attendance",
     description: "Finalize attendance sessions."
@@ -152,10 +158,13 @@ export async function seedWorkspaceAuthorization(): Promise<void> {
     await transaction
       .insert(rolePermissions)
       .values(
-        permissionRows.map(({ code: permissionCode }) => ({
+        [
+          ...permissionRows.map(({ code: permissionCode }) => ({
           roleCode: workspaceRoleCodes.owner,
           permissionCode
-        }))
+          })),
+          { roleCode: workspaceRoleCodes.admin, permissionCode: 1601 }
+        ]
       )
       .onConflictDoNothing();
   });

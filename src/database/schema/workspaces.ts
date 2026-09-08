@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  primaryKey,
   pgEnum,
   pgTable,
   smallint,
@@ -84,6 +85,7 @@ export const workspaceMembers = pgTable(
     roleCode: smallint("role_code")
       .notNull()
       .references(() => workspaceRoles.code),
+    customRoleId: uuid("custom_role_id"),
     status: memberStatus("status").notNull().default("active"),
     invitedBy: text("invited_by"),
     joinedAt: timestamp("joined_at", { withTimezone: true }),
@@ -94,6 +96,38 @@ export const workspaceMembers = pgTable(
     uniqueIndex("workspace_members_workspace_user_idx").on(table.workspaceId, table.userId),
     index("workspace_members_user_idx").on(table.userId),
     index("workspace_members_workspace_role_idx").on(table.workspaceId, table.roleCode)
+  ]
+);
+
+/** Workspace-owned roles replace the old shared Admin, Teacher, and Staff presets. */
+export const workspaceCustomRoles = pgTable(
+  "workspace_custom_roles",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id),
+    name: varchar("name", { length: 50 }).notNull(),
+    description: text("description"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("workspace_custom_roles_workspace_name_idx").on(table.workspaceId, table.name),
+    index("workspace_custom_roles_workspace_idx").on(table.workspaceId)
+  ]
+);
+
+export const workspaceCustomRolePermissions = pgTable(
+  "workspace_custom_role_permissions",
+  {
+    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id),
+    roleId: uuid("role_id").notNull().references(() => workspaceCustomRoles.id),
+    permissionCode: integer("permission_code").notNull().references(() => permissions.code),
+    allowed: boolean("allowed").notNull()
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.roleId, table.permissionCode] }),
+    index("workspace_custom_role_permissions_role_idx").on(table.roleId)
   ]
 );
 
@@ -118,5 +152,28 @@ export const memberPermissionOverrides = pgTable(
     uniqueIndex("member_permission_overrides_member_permission_idx").on(table.memberId, table.permissionCode),
     index("member_permission_overrides_workspace_idx").on(table.workspaceId),
     index("member_permission_overrides_permission_idx").on(table.permissionCode)
+  ]
+);
+
+/** Workspace-scoped role grants override the seeded global role defaults. */
+export const workspaceRolePermissionOverrides = pgTable(
+  "workspace_role_permission_overrides",
+  {
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    roleCode: smallint("role_code")
+      .notNull()
+      .references(() => workspaceRoles.code),
+    permissionCode: integer("permission_code")
+      .notNull()
+      .references(() => permissions.code),
+    allowed: boolean("allowed").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.roleCode, table.permissionCode] }),
+    index("workspace_role_permission_overrides_permission_idx").on(table.permissionCode)
   ]
 );

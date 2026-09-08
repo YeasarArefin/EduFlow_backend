@@ -8,4 +8,6 @@ export * from "./academics";
 export * from "./batches";
 export * from "./teachers";
 export * from "./fees";
+export * from "./teacher-salaries";
+export * from "./attendance";
 export * from "../relations";

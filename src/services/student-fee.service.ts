@@ -1,7 +1,7 @@
-import { and, count, desc, eq, getTableColumns, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, ilike, or, sql, type SQL } from "drizzle-orm";
 import type { z } from "zod";
 import { withWorkspaceContext } from "../database/client";
-import { batchEnrollments } from "../database/schema/batches";
+import { batches, batchEnrollments } from "../database/schema/batches";
 import { studentFees } from "../database/schema/fees";
 import { students } from "../database/schema/students";
 import { workspaceSettings } from "../database/schema/workspaces";
@@ -31,15 +31,22 @@ const currentFeeStatus = feeStatusExpression(
 );
 const feeSelection = { ...getTableColumns(studentFees), status: currentFeeStatus };
 
-function mapFee(row: Fee) {
+function mapFee(
+  row: Fee,
+  student?: { id: string; fullName: string; studentCode: string; phone: string | null } | null,
+  batch?: { id: string; name: string } | null,
+) {
   return {
     id: row.id, studentId: row.studentId, enrollmentId: row.enrollmentId,
     feeMonth: row.feeMonth, expectedAmount: row.expectedAmount,
     discountAmount: row.discountAmount, paidAmount: row.paidAmount,
     dueAmount: row.dueAmount, status: row.status, dueDate: row.dueDate,
     graceDate: row.graceDate, createdAt: row.createdAt, updatedAt: row.updatedAt,
+    ...(student?.id ? { student: { id: student.id, fullName: student.fullName, studentCode: student.studentCode, phone: student.phone } } : {}),
+    ...(batch?.id ? { batch: { id: batch.id, name: batch.name } } : {}),
   };
 }
+
 
 async function insertEligibleFees(tx: Transaction, workspaceId: string, actorUserId: string, feeMonth: string, enrollmentId?: string) {
   const [settings] = await tx.select({ dueDay: workspaceSettings.defaultFeeDueDay, graceDays: workspaceSettings.gracePeriodDays })
@@ -126,14 +133,82 @@ export async function listStudentFees(workspaceId: string, query: FeeQuery, stud
       studentId ? eq(studentFees.studentId, studentId) : undefined,
       query.feeMonth ? eq(studentFees.feeMonth, query.feeMonth) : undefined,
       query.status ? eq(currentFeeStatus, query.status) : undefined,
+      query.search
+        ? or(
+            ilike(students.fullName, `%${query.search}%`),
+            ilike(students.studentCode, `%${query.search}%`),
+          )
+        : undefined,
     );
-    const rows = await tx.select(feeSelection).from(studentFees).where(where)
+
+    const rows = await tx
+      .select({
+        fee: feeSelection,
+        student: {
+          id: students.id,
+          fullName: students.fullName,
+          studentCode: students.studentCode,
+          phone: students.phone,
+        },
+        batch: {
+          id: batches.id,
+          name: batches.name,
+        },
+      })
+      .from(studentFees)
+      .leftJoin(students, and(eq(students.id, studentFees.studentId), eq(students.workspaceId, workspaceId)))
+      .leftJoin(batchEnrollments, and(eq(batchEnrollments.id, studentFees.enrollmentId), eq(batchEnrollments.workspaceId, workspaceId)))
+      .leftJoin(batches, and(eq(batches.id, batchEnrollments.batchId), eq(batches.workspaceId, workspaceId)))
+      .where(where)
       .orderBy(desc(studentFees.feeMonth), desc(studentFees.id))
-      .limit(query.limit).offset((query.page - 1) * query.limit);
-    const [totals] = await tx.select({ total: count() }).from(studentFees).where(where);
+      .limit(query.limit)
+      .offset((query.page - 1) * query.limit);
+
+    const [totals] = await tx
+      .select({ total: count() })
+      .from(studentFees)
+      .leftJoin(students, and(eq(students.id, studentFees.studentId), eq(students.workspaceId, workspaceId)))
+      .where(where);
+
+    let summary:
+      | {
+          totalExpected: string;
+          totalCollected: string;
+          totalOutstanding: string;
+          totalOverdue: string;
+        }
+      | undefined;
+
+    if (query.feeMonth) {
+      const summaryRes = await tx.execute<{
+        totalExpected: string;
+        totalCollected: string;
+        totalOutstanding: string;
+        totalOverdue: string;
+      }>(sql`
+        select
+          coalesce(sum(expected_amount - discount_amount), 0)::numeric(19,2)::text as "totalExpected",
+          coalesce(sum(paid_amount), 0)::numeric(19,2)::text as "totalCollected",
+          coalesce(sum(greatest(expected_amount - discount_amount - paid_amount, 0)), 0)::numeric(19,2)::text as "totalOutstanding",
+          coalesce(sum(case when grace_date < (current_timestamp at time zone 'Asia/Dhaka')::date then greatest(expected_amount - discount_amount - paid_amount, 0) else 0 end), 0)::numeric(19,2)::text as "totalOverdue"
+        from student_fees
+        where workspace_id = ${workspaceId}::uuid
+          and fee_month = ${query.feeMonth}::date
+      `);
+      summary = summaryRes.rows[0];
+    }
+
     return {
-      data: rows.map(mapFee),
-      meta: { page: query.page, limit: query.limit, total: totals.total, totalPages: Math.ceil(totals.total / query.limit) },
+      data: rows.map((r) => (studentId ? mapFee(r.fee) : mapFee(r.fee, r.student, r.batch))),
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total: totals.total,
+        totalPages: Math.ceil(totals.total / query.limit),
+        summary,
+      },
     };
   });
 }
+
+

@@ -2,6 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { studentFeePermissions } from "../../config/student-fees";
 import { bulkGenerateFeesController, generateEnrollmentFeeController, listWorkspaceFeesController } from "../../controllers/student-fee.controller";
+import { listFeePaymentsController, recordFeePaymentController } from "../../controllers/student-payment.controller";
 import { requireAuth } from "../../middleware/require-auth";
 import { requirePermission } from "../../middleware/require-permission";
 import { requireWorkspaceSubscriptionAccess } from "../../middleware/require-subscription-access";
@@ -18,3 +19,6 @@ const generationLimit = rateLimit({
 studentFeeRoutes.get("/", requirePermission(studentFeePermissions.view.key), listWorkspaceFeesController);
 studentFeeRoutes.post("/generate", requirePermission(studentFeePermissions.generate.key), generationLimit, bulkGenerateFeesController);
 studentFeeRoutes.post("/enrollments/:enrollmentId/generate", requirePermission(studentFeePermissions.generate.key), generationLimit, generateEnrollmentFeeController);
+studentFeeRoutes.post("/:id/payments", requirePermission(studentFeePermissions.collect.key), recordFeePaymentController);
+studentFeeRoutes.get("/:id/payments", requirePermission(studentFeePermissions.view.key), listFeePaymentsController);
+

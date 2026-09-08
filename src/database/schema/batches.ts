@@ -28,6 +28,7 @@ export const batches = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    uniqueIndex("batches_id_workspace_idx").on(table.id, table.workspaceId),
     uniqueIndex("batches_workspace_name_idx").on(table.workspaceId, table.name),
     index("batches_workspace_status_idx").on(table.workspaceId, table.status),
     index("batches_class_level_idx").on(table.classLevelId),

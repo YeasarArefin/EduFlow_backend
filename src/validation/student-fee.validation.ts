@@ -11,7 +11,9 @@ export const feeStudentParamsSchema = z.object({ id: uuidSchema });
 export const feeHistoryQuerySchema = z.object({
   feeMonth: feeMonthSchema.optional(),
   status: z.enum(studentFeeStatuses).optional(),
+  search: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).max(1000000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 }).strict();
 export const feeListQuerySchema = feeHistoryQuerySchema.extend({ feeMonth: feeMonthSchema });
+

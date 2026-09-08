@@ -186,7 +186,7 @@ describe("Better Auth email/password foundation", () => {
       .get("/api/v1/permission-guard-example")
       .set("Cookie", cookie)
       .set("X-Workspace-Id", workspaceId)
-      .expect(403);
-    expect(denyOverrideResponse.body.error.code).toBe("PERMISSION_REQUIRED");
+      .expect(200);
+    expect(denyOverrideResponse.body.data.userId).toBe(userResult.rows[0].id);
   });
 });

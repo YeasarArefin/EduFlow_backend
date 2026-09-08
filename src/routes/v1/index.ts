@@ -11,6 +11,11 @@ import { academicRoutes } from "./academic.routes";
 import { teacherRoutes } from "./teacher.routes";
 import { batchRoutes } from "./batch.routes";
 import { studentFeeRoutes } from "./student-fee.routes";
+import { studentPaymentRoutes } from "./student-payment.routes";
+import { attendanceRoutes } from "./attendance.routes";
+import { teacherSalaryRoutes } from "./teacher-salary.routes";
+import { memberRoutes } from "./member.routes";
+import { permissionManagementRoutes } from "./permission-management.routes";
 
 export const v1Router = Router();
 
@@ -26,3 +31,9 @@ v1Router.use("/academic", academicRoutes);
 v1Router.use("/teachers", teacherRoutes);
 v1Router.use("/batches", batchRoutes);
 v1Router.use("/student-fees", studentFeeRoutes);
+v1Router.use("/student-payments", studentPaymentRoutes);
+v1Router.use("/attendance-sessions", attendanceRoutes);
+v1Router.use("/teacher-salaries", teacherSalaryRoutes);
+v1Router.use("/members", memberRoutes);
+v1Router.use("/permission-management", permissionManagementRoutes);
+
