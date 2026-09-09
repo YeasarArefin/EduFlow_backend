@@ -1,14 +1,9 @@
-import { and, desc, eq } from "drizzle-orm";
-import { db } from "../database/client";
-import { paymentRequests } from "../database/schema/subscriptions";
-import { workspaces } from "../database/schema/workspaces";
-import { resolveWorkspaceSubscriptionAccess } from "./subscription-access";
-
-export type WorkspaceOnboardingStep =
-  | "workspace_created"
-  | "subscription_required"
-  | "payment_pending"
-  | "ready";
+import { and, desc, eq } from 'drizzle-orm';
+import { db } from '../database/client';
+import { paymentRequests } from '../database/schema/subscriptions';
+import { workspaces } from '../database/schema/workspaces';
+import { resolveWorkspaceSubscriptionAccess } from './subscription-access.service';
+import type { WorkspaceOnboardingStep } from '../types/workspace';
 
 export async function getWorkspaceOnboardingState(workspaceId: string) {
   const [[workspace], [pendingPayment], access] = await Promise.all([
@@ -20,25 +15,27 @@ export async function getWorkspaceOnboardingState(workspaceId: string) {
     db
       .select({ id: paymentRequests.id })
       .from(paymentRequests)
-      .where(and(eq(paymentRequests.workspaceId, workspaceId), eq(paymentRequests.status, "pending")))
+      .where(
+        and(eq(paymentRequests.workspaceId, workspaceId), eq(paymentRequests.status, 'pending'))
+      )
       .orderBy(desc(paymentRequests.createdAt))
       .limit(1),
-    resolveWorkspaceSubscriptionAccess(workspaceId)
+    resolveWorkspaceSubscriptionAccess(workspaceId),
   ]);
 
   const hasPendingPayment = pendingPayment?.id !== undefined;
   const step: WorkspaceOnboardingStep = access.allowed
-    ? "ready"
+    ? 'ready'
     : hasPendingPayment
-      ? "payment_pending"
-      : workspace?.status === "pending"
-        ? "workspace_created"
-        : "subscription_required";
+      ? 'payment_pending'
+      : workspace?.status === 'pending'
+        ? 'workspace_created'
+        : 'subscription_required';
 
   return {
     step,
-    workspaceStatus: workspace?.status ?? "pending",
+    workspaceStatus: workspace?.status ?? 'pending',
     paymentPending: hasPendingPayment,
-    access
+    access,
   };
 }

@@ -136,12 +136,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -227,12 +223,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -242,9 +234,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -306,9 +296,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -504,12 +492,8 @@
           "name": "audit_logs_workspace_id_workspaces_id_fk",
           "tableFrom": "audit_logs",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -575,9 +559,7 @@
         "platform_owners_user_id_unique": {
           "name": "platform_owners_user_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id"
-          ]
+          "columns": ["user_id"]
         }
       },
       "policies": {},
@@ -631,9 +613,7 @@
         "permissions_key_unique": {
           "name": "permissions_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "key"
-          ]
+          "columns": ["key"]
         }
       },
       "policies": {},
@@ -679,12 +659,8 @@
           "name": "role_permissions_role_code_workspace_roles_code_fk",
           "tableFrom": "role_permissions",
           "tableTo": "workspace_roles",
-          "columnsFrom": [
-            "role_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["role_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -692,12 +668,8 @@
           "name": "role_permissions_permission_code_permissions_code_fk",
           "tableFrom": "role_permissions",
           "tableTo": "permissions",
-          "columnsFrom": [
-            "permission_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["permission_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -705,10 +677,7 @@
       "compositePrimaryKeys": {
         "role_permissions_role_code_permission_code_pk": {
           "name": "role_permissions_role_code_permission_code_pk",
-          "columns": [
-            "role_code",
-            "permission_code"
-          ]
+          "columns": ["role_code", "permission_code"]
         }
       },
       "uniqueConstraints": {},
@@ -854,12 +823,8 @@
           "name": "member_permission_overrides_workspace_id_workspaces_id_fk",
           "tableFrom": "member_permission_overrides",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -867,12 +832,8 @@
           "name": "member_permission_overrides_member_id_workspace_members_id_fk",
           "tableFrom": "member_permission_overrides",
           "tableTo": "workspace_members",
-          "columnsFrom": [
-            "member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["member_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -880,12 +841,8 @@
           "name": "member_permission_overrides_permission_code_permissions_code_fk",
           "tableFrom": "member_permission_overrides",
           "tableTo": "permissions",
-          "columnsFrom": [
-            "permission_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["permission_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1024,12 +981,8 @@
           "name": "workspace_members_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_members",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1037,12 +990,8 @@
           "name": "workspace_members_role_code_workspace_roles_code_fk",
           "tableFrom": "workspace_members",
           "tableTo": "workspace_roles",
-          "columnsFrom": [
-            "role_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["role_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1118,12 +1067,8 @@
           "name": "workspace_role_permission_overrides_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_role_permission_overrides",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1131,12 +1076,8 @@
           "name": "workspace_role_permission_overrides_role_code_workspace_roles_code_fk",
           "tableFrom": "workspace_role_permission_overrides",
           "tableTo": "workspace_roles",
-          "columnsFrom": [
-            "role_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["role_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1144,12 +1085,8 @@
           "name": "workspace_role_permission_overrides_permission_code_permissions_code_fk",
           "tableFrom": "workspace_role_permission_overrides",
           "tableTo": "permissions",
-          "columnsFrom": [
-            "permission_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["permission_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1157,11 +1094,7 @@
       "compositePrimaryKeys": {
         "workspace_role_permission_overrides_workspace_id_role_code_permission_code_pk": {
           "name": "workspace_role_permission_overrides_workspace_id_role_code_permission_code_pk",
-          "columns": [
-            "workspace_id",
-            "role_code",
-            "permission_code"
-          ]
+          "columns": ["workspace_id", "role_code", "permission_code"]
         }
       },
       "uniqueConstraints": {},
@@ -1246,12 +1179,8 @@
           "name": "workspace_settings_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_settings",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1415,9 +1344,7 @@
         "workspaces_slug_unique": {
           "name": "workspaces_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -1638,12 +1565,8 @@
           "name": "payment_requests_workspace_id_workspaces_id_fk",
           "tableFrom": "payment_requests",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1651,12 +1574,8 @@
           "name": "payment_requests_plan_id_plans_id_fk",
           "tableFrom": "payment_requests",
           "tableTo": "plans",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1664,12 +1583,8 @@
           "name": "payment_requests_reviewed_by_user_id_platform_owners_user_id_fk",
           "tableFrom": "payment_requests",
           "tableTo": "platform_owners",
-          "columnsFrom": [
-            "reviewed_by_user_id"
-          ],
-          "columnsTo": [
-            "user_id"
-          ],
+          "columnsFrom": ["reviewed_by_user_id"],
+          "columnsTo": ["user_id"],
           "onDelete": "no action",
           "onUpdate": "cascade"
         }
@@ -1745,12 +1660,8 @@
           "name": "plan_features_plan_id_plans_id_fk",
           "tableFrom": "plan_features",
           "tableTo": "plans",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1758,12 +1669,8 @@
           "name": "plan_features_feature_key_features_key_fk",
           "tableFrom": "plan_features",
           "tableTo": "features",
-          "columnsFrom": [
-            "feature_key"
-          ],
-          "columnsTo": [
-            "key"
-          ],
+          "columnsFrom": ["feature_key"],
+          "columnsTo": ["key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1771,10 +1678,7 @@
       "compositePrimaryKeys": {
         "plan_features_plan_id_feature_key_pk": {
           "name": "plan_features_plan_id_feature_key_pk",
-          "columns": [
-            "plan_id",
-            "feature_key"
-          ]
+          "columns": ["plan_id", "feature_key"]
         }
       },
       "uniqueConstraints": {},
@@ -1874,9 +1778,7 @@
         "plans_slug_unique": {
           "name": "plans_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -2060,12 +1962,8 @@
           "name": "subscriptions_workspace_id_workspaces_id_fk",
           "tableFrom": "subscriptions",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2073,12 +1971,8 @@
           "name": "subscriptions_plan_id_plans_id_fk",
           "tableFrom": "subscriptions",
           "tableTo": "plans",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2194,12 +2088,8 @@
           "name": "workspace_entitlement_overrides_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_entitlement_overrides",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2207,12 +2097,8 @@
           "name": "workspace_entitlement_overrides_feature_key_features_key_fk",
           "tableFrom": "workspace_entitlement_overrides",
           "tableTo": "features",
-          "columnsFrom": [
-            "feature_key"
-          ],
-          "columnsTo": [
-            "key"
-          ],
+          "columnsFrom": ["feature_key"],
+          "columnsTo": ["key"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2288,12 +2174,8 @@
           "name": "student_tag_assignments_student_id_students_id_fk",
           "tableFrom": "student_tag_assignments",
           "tableTo": "students",
-          "columnsFrom": [
-            "student_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["student_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2301,12 +2183,8 @@
           "name": "student_tag_assignments_tag_id_student_tags_id_fk",
           "tableFrom": "student_tag_assignments",
           "tableTo": "student_tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tag_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2614,12 +2492,8 @@
           "name": "students_workspace_id_workspaces_id_fk",
           "tableFrom": "students",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2627,12 +2501,8 @@
           "name": "students_class_level_id_class_levels_id_fk",
           "tableFrom": "students",
           "tableTo": "class_levels",
-          "columnsFrom": [
-            "class_level_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["class_level_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2640,12 +2510,8 @@
           "name": "students_medium_id_mediums_id_fk",
           "tableFrom": "students",
           "tableTo": "mediums",
-          "columnsFrom": [
-            "medium_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["medium_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2653,12 +2519,8 @@
           "name": "students_academic_group_id_academic_groups_id_fk",
           "tableFrom": "students",
           "tableTo": "academic_groups",
-          "columnsFrom": [
-            "academic_group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["academic_group_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2728,12 +2590,8 @@
           "name": "academic_groups_workspace_id_workspaces_id_fk",
           "tableFrom": "academic_groups",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2803,12 +2661,8 @@
           "name": "class_levels_workspace_id_workspaces_id_fk",
           "tableFrom": "class_levels",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2878,12 +2732,8 @@
           "name": "mediums_workspace_id_workspaces_id_fk",
           "tableFrom": "mediums",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2946,12 +2796,8 @@
           "name": "student_tags_workspace_id_workspaces_id_fk",
           "tableFrom": "student_tags",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3149,12 +2995,8 @@
           "name": "batch_enrollments_workspace_id_workspaces_id_fk",
           "tableFrom": "batch_enrollments",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3162,12 +3004,8 @@
           "name": "batch_enrollments_student_id_students_id_fk",
           "tableFrom": "batch_enrollments",
           "tableTo": "students",
-          "columnsFrom": [
-            "student_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["student_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3175,12 +3013,8 @@
           "name": "batch_enrollments_batch_id_batches_id_fk",
           "tableFrom": "batch_enrollments",
           "tableTo": "batches",
-          "columnsFrom": [
-            "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["batch_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3324,12 +3158,8 @@
           "name": "batch_teachers_workspace_id_workspaces_id_fk",
           "tableFrom": "batch_teachers",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3337,12 +3167,8 @@
           "name": "batch_teachers_batch_id_batches_id_fk",
           "tableFrom": "batch_teachers",
           "tableTo": "batches",
-          "columnsFrom": [
-            "batch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["batch_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3350,12 +3176,8 @@
           "name": "batch_teachers_teacher_id_teachers_id_fk",
           "tableFrom": "batch_teachers",
           "tableTo": "teachers",
-          "columnsFrom": [
-            "teacher_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["teacher_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3582,12 +3404,8 @@
           "name": "batches_workspace_id_workspaces_id_fk",
           "tableFrom": "batches",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3595,12 +3413,8 @@
           "name": "batches_class_level_id_class_levels_id_fk",
           "tableFrom": "batches",
           "tableTo": "class_levels",
-          "columnsFrom": [
-            "class_level_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["class_level_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3608,12 +3422,8 @@
           "name": "batches_medium_id_mediums_id_fk",
           "tableFrom": "batches",
           "tableTo": "mediums",
-          "columnsFrom": [
-            "medium_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["medium_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3621,12 +3431,8 @@
           "name": "batches_academic_group_id_academic_groups_id_fk",
           "tableFrom": "batches",
           "tableTo": "academic_groups",
-          "columnsFrom": [
-            "academic_group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["academic_group_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3795,12 +3601,8 @@
           "name": "teachers_workspace_id_workspaces_id_fk",
           "tableFrom": "teachers",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4020,12 +3822,8 @@
           "name": "student_fees_workspace_id_workspaces_id_fk",
           "tableFrom": "student_fees",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4033,16 +3831,8 @@
           "name": "student_fees_enrollment_workspace_student_fk",
           "tableFrom": "student_fees",
           "tableTo": "batch_enrollments",
-          "columnsFrom": [
-            "enrollment_id",
-            "workspace_id",
-            "student_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id",
-            "student_id"
-          ],
+          "columnsFrom": ["enrollment_id", "workspace_id", "student_id"],
+          "columnsTo": ["id", "workspace_id", "student_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4050,14 +3840,8 @@
           "name": "student_fees_student_workspace_fk",
           "tableFrom": "student_fees",
           "tableTo": "students",
-          "columnsFrom": [
-            "student_id",
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id"
-          ],
+          "columnsFrom": ["student_id", "workspace_id"],
+          "columnsTo": ["id", "workspace_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4069,9 +3853,7 @@
           "name": "student_fees_workspace_isolation",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": [
-            "eduflow_app"
-          ],
+          "to": ["eduflow_app"],
           "using": "\"student_fees\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)",
           "withCheck": "\"student_fees\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)"
         }
@@ -4275,12 +4057,8 @@
           "name": "student_payments_workspace_id_workspaces_id_fk",
           "tableFrom": "student_payments",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4288,14 +4066,8 @@
           "name": "student_payments_student_workspace_fk",
           "tableFrom": "student_payments",
           "tableTo": "students",
-          "columnsFrom": [
-            "student_id",
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id"
-          ],
+          "columnsFrom": ["student_id", "workspace_id"],
+          "columnsTo": ["id", "workspace_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4303,16 +4075,8 @@
           "name": "student_payments_fee_workspace_student_fk",
           "tableFrom": "student_payments",
           "tableTo": "student_fees",
-          "columnsFrom": [
-            "student_fee_id",
-            "workspace_id",
-            "student_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id",
-            "student_id"
-          ],
+          "columnsFrom": ["student_fee_id", "workspace_id", "student_id"],
+          "columnsTo": ["id", "workspace_id", "student_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4324,9 +4088,7 @@
           "name": "student_payments_workspace_isolation",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": [
-            "eduflow_app"
-          ],
+          "to": ["eduflow_app"],
           "using": "\"student_payments\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)",
           "withCheck": "\"student_payments\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)"
         }
@@ -4509,12 +4271,8 @@
           "name": "teacher_salaries_workspace_id_workspaces_id_fk",
           "tableFrom": "teacher_salaries",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4522,14 +4280,8 @@
           "name": "teacher_salaries_teacher_workspace_fk",
           "tableFrom": "teacher_salaries",
           "tableTo": "teachers",
-          "columnsFrom": [
-            "teacher_id",
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id"
-          ],
+          "columnsFrom": ["teacher_id", "workspace_id"],
+          "columnsTo": ["id", "workspace_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4541,9 +4293,7 @@
           "name": "teacher_salaries_workspace_isolation",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": [
-            "eduflow_app"
-          ],
+          "to": ["eduflow_app"],
           "using": "\"teacher_salaries\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)",
           "withCheck": "\"teacher_salaries\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)"
         }
@@ -4686,12 +4436,8 @@
           "name": "attendance_records_workspace_id_workspaces_id_fk",
           "tableFrom": "attendance_records",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4699,14 +4445,8 @@
           "name": "attendance_records_session_workspace_fk",
           "tableFrom": "attendance_records",
           "tableTo": "attendance_sessions",
-          "columnsFrom": [
-            "attendance_session_id",
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id"
-          ],
+          "columnsFrom": ["attendance_session_id", "workspace_id"],
+          "columnsTo": ["id", "workspace_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4714,14 +4454,8 @@
           "name": "attendance_records_student_workspace_fk",
           "tableFrom": "attendance_records",
           "tableTo": "students",
-          "columnsFrom": [
-            "student_id",
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id"
-          ],
+          "columnsFrom": ["student_id", "workspace_id"],
+          "columnsTo": ["id", "workspace_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4733,9 +4467,7 @@
           "name": "attendance_records_workspace_isolation",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": [
-            "eduflow_app"
-          ],
+          "to": ["eduflow_app"],
           "using": "\"attendance_records\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)",
           "withCheck": "\"attendance_records\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)"
         }
@@ -4865,12 +4597,8 @@
           "name": "attendance_sessions_workspace_id_workspaces_id_fk",
           "tableFrom": "attendance_sessions",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4878,14 +4606,8 @@
           "name": "attendance_sessions_batch_workspace_fk",
           "tableFrom": "attendance_sessions",
           "tableTo": "batches",
-          "columnsFrom": [
-            "batch_id",
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id",
-            "workspace_id"
-          ],
+          "columnsFrom": ["batch_id", "workspace_id"],
+          "columnsTo": ["id", "workspace_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4897,9 +4619,7 @@
           "name": "attendance_sessions_workspace_isolation",
           "as": "PERMISSIVE",
           "for": "ALL",
-          "to": [
-            "eduflow_app"
-          ],
+          "to": ["eduflow_app"],
           "using": "\"attendance_sessions\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)",
           "withCheck": "\"attendance_sessions\".\"workspace_id\" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)"
         }
@@ -4912,162 +4632,82 @@
     "public.member_status": {
       "name": "member_status",
       "schema": "public",
-      "values": [
-        "invited",
-        "active",
-        "suspended",
-        "removed"
-      ]
+      "values": ["invited", "active", "suspended", "removed"]
     },
     "public.workspace_status": {
       "name": "workspace_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "active",
-        "locked",
-        "suspended",
-        "scheduled_deletion",
-        "deleted"
-      ]
+      "values": ["pending", "active", "locked", "suspended", "scheduled_deletion", "deleted"]
     },
     "public.payment_method": {
       "name": "payment_method",
       "schema": "public",
-      "values": [
-        "cash",
-        "bkash",
-        "nagad",
-        "rocket",
-        "other"
-      ]
+      "values": ["cash", "bkash", "nagad", "rocket", "other"]
     },
     "public.payment_request_purpose": {
       "name": "payment_request_purpose",
       "schema": "public",
-      "values": [
-        "subscription",
-        "sms_credit"
-      ]
+      "values": ["subscription", "sms_credit"]
     },
     "public.payment_request_status": {
       "name": "payment_request_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "approved",
-        "rejected"
-      ]
+      "values": ["pending", "approved", "rejected"]
     },
     "public.subscription_status": {
       "name": "subscription_status",
       "schema": "public",
-      "values": [
-        "trial",
-        "pending",
-        "active",
-        "renewal_due",
-        "expired",
-        "cancelled",
-        "suspended"
-      ]
+      "values": ["trial", "pending", "active", "renewal_due", "expired", "cancelled", "suspended"]
     },
     "public.student_gender": {
       "name": "student_gender",
       "schema": "public",
-      "values": [
-        "male",
-        "female",
-        "other"
-      ]
+      "values": ["male", "female", "other"]
     },
     "public.student_status": {
       "name": "student_status",
       "schema": "public",
-      "values": [
-        "active",
-        "inactive",
-        "archived"
-      ]
+      "values": ["active", "inactive", "archived"]
     },
     "public.batch_status": {
       "name": "batch_status",
       "schema": "public",
-      "values": [
-        "active",
-        "inactive",
-        "archived"
-      ]
+      "values": ["active", "inactive", "archived"]
     },
     "public.enrollment_status": {
       "name": "enrollment_status",
       "schema": "public",
-      "values": [
-        "active",
-        "inactive",
-        "completed",
-        "cancelled",
-        "archived"
-      ]
+      "values": ["active", "inactive", "completed", "cancelled", "archived"]
     },
     "public.teacher_status": {
       "name": "teacher_status",
       "schema": "public",
-      "values": [
-        "active",
-        "inactive",
-        "archived"
-      ]
+      "values": ["active", "inactive", "archived"]
     },
     "public.fee_status": {
       "name": "fee_status",
       "schema": "public",
-      "values": [
-        "unpaid",
-        "partially_paid",
-        "paid",
-        "overpaid",
-        "waived",
-        "overdue"
-      ]
+      "values": ["unpaid", "partially_paid", "paid", "overpaid", "waived", "overdue"]
     },
     "public.student_payment_method": {
       "name": "student_payment_method",
       "schema": "public",
-      "values": [
-        "cash",
-        "bkash",
-        "nagad",
-        "rocket",
-        "other"
-      ]
+      "values": ["cash", "bkash", "nagad", "rocket", "other"]
     },
     "public.teacher_salary_status": {
       "name": "teacher_salary_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "partially_paid",
-        "paid",
-        "overdue",
-        "waived"
-      ]
+      "values": ["pending", "partially_paid", "paid", "overdue", "waived"]
     },
     "public.attendance_session_status": {
       "name": "attendance_session_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "finalized"
-      ]
+      "values": ["draft", "finalized"]
     },
     "public.attendance_status": {
       "name": "attendance_status",
       "schema": "public",
-      "values": [
-        "present",
-        "absent"
-      ]
+      "values": ["present", "absent"]
     }
   },
   "schemas": {},

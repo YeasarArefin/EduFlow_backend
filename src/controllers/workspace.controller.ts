@@ -1,22 +1,22 @@
-import type { RequestHandler } from "express";
-import { getWorkspaceDetail, listWorkspaces } from "../services/workspace-list.service";
-import { createWorkspaceOnboarding } from "../services/workspace-onboarding.service";
-import { getWorkspaceOnboardingState } from "../services/workspace-onboarding-state.service";
-import { getWorkspaceDashboardSummary } from "../services/workspace-dashboard.service";
+import type { RequestHandler } from 'express';
+import { getWorkspaceDetail, listWorkspaces } from '../services/workspace-list.service';
+import { createWorkspaceOnboarding } from '../services/workspace-onboarding.service';
+import { getWorkspaceOnboardingState } from '../services/workspace-onboarding-state.service';
+import { getWorkspaceDashboardSummary } from '../services/workspace-dashboard.service';
 import {
   createWorkspaceOnboardingSchema,
   workspaceIdSchema,
-  workspaceListQuerySchema
-} from "../validation/workspace.validation";
+  workspaceListQuerySchema,
+} from '../validation/workspace.validation';
 
 export const createWorkspaceOnboard: RequestHandler = async (req, res, next) => {
   const parsed = createWorkspaceOnboardingSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
       error: {
-        code: "VALIDATION_ERROR",
-        message: "Request validation failed."
-      }
+        code: 'VALIDATION_ERROR',
+        message: 'Request validation failed.',
+      },
     });
     return;
   }
@@ -25,9 +25,9 @@ export const createWorkspaceOnboard: RequestHandler = async (req, res, next) => 
   if (!user) {
     res.status(401).json({
       error: {
-        code: "UNAUTHENTICATED",
-        message: "A valid authentication session is required."
-      }
+        code: 'UNAUTHENTICATED',
+        message: 'A valid authentication session is required.',
+      },
     });
     return;
   }
@@ -45,9 +45,9 @@ export const getWorkspaceOnboardState: RequestHandler = async (req, res, next) =
   if (!context) {
     res.status(401).json({
       error: {
-        code: "UNAUTHENTICATED",
-        message: "A valid authentication session is required."
-      }
+        code: 'UNAUTHENTICATED',
+        message: 'A valid authentication session is required.',
+      },
     });
     return;
   }
@@ -62,13 +62,19 @@ export const getWorkspaceOnboardState: RequestHandler = async (req, res, next) =
 export const getWorkspaceDashboard: RequestHandler = async (req, res, next) => {
   const context = req.workspaceContext;
   if (!context) {
-    res.status(401).json({ error: { code: "UNAUTHENTICATED", message: "A valid authentication session is required." } });
+    res
+      .status(401)
+      .json({
+        error: { code: 'UNAUTHENTICATED', message: 'A valid authentication session is required.' },
+      });
     return;
   }
   try {
     const summary = await getWorkspaceDashboardSummary(context.workspaceId);
     if (!summary) {
-      res.status(404).json({ error: { code: "WORKSPACE_NOT_FOUND", message: "The workspace was not found." } });
+      res
+        .status(404)
+        .json({ error: { code: 'WORKSPACE_NOT_FOUND', message: 'The workspace was not found.' } });
       return;
     }
     res.status(200).json({ data: summary });
@@ -82,9 +88,9 @@ export const listPlatformWorkspaces: RequestHandler = async (req, res, next) => 
   if (!parsed.success) {
     res.status(400).json({
       error: {
-        code: "VALIDATION_ERROR",
-        message: "Request validation failed."
-      }
+        code: 'VALIDATION_ERROR',
+        message: 'Request validation failed.',
+      },
     });
     return;
   }
@@ -96,8 +102,8 @@ export const listPlatformWorkspaces: RequestHandler = async (req, res, next) => 
         page: parsed.data.page,
         limit: parsed.data.limit,
         total: result.total,
-        totalPages: Math.ceil(result.total / parsed.data.limit)
-      }
+        totalPages: Math.ceil(result.total / parsed.data.limit),
+      },
     });
   } catch (error) {
     next(error);
@@ -108,9 +114,9 @@ export const getPlatformWorkspaceDetail: RequestHandler = async (req, res, next)
   if (!parsed.success) {
     res.status(400).json({
       error: {
-        code: "VALIDATION_ERROR",
-        message: "A valid workspace ID is required."
-      }
+        code: 'VALIDATION_ERROR',
+        message: 'A valid workspace ID is required.',
+      },
     });
     return;
   }

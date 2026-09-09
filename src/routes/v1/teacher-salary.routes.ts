@@ -1,18 +1,46 @@
-import { Router } from "express";
-import { teacherSalaryPermissions } from "../../config/teacher-salaries";
-import { bulkGenerateTeacherSalariesController, generateTeacherSalaryController, listTeacherSalariesController, teacherSalaryHistoryController } from "../../controllers/teacher-salary.controller";
-import { requireAuth } from "../../middleware/require-auth";
-import { requirePermission } from "../../middleware/require-permission";
-import { requireWorkspaceSubscriptionAccess } from "../../middleware/require-subscription-access";
-import { requireWorkspaceContext } from "../../middleware/require-workspace-context";
-import { sql } from "drizzle-orm";
-import { withWorkspaceContext } from "../../database/client";
-import { z } from "zod";
+import { Router } from 'express';
+import { teacherSalaryPermissions } from '../../config/teacher-salaries';
+import {
+  bulkGenerateTeacherSalariesController,
+  generateTeacherSalaryController,
+  listTeacherSalariesController,
+  listTeacherSalaryPaymentsController,
+  recordTeacherSalaryPaymentController,
+  teacherSalaryHistoryController,
+} from '../../controllers/teacher-salary.controller';
+import { requireAuth } from '../../middleware/require-auth';
+import { requirePermission } from '../../middleware/require-permission';
+import { requireWorkspaceSubscriptionAccess } from '../../middleware/require-subscription-access';
+import { requireWorkspaceContext } from '../../middleware/require-workspace-context';
 export const teacherSalaryRoutes = Router();
 teacherSalaryRoutes.use(requireAuth, requireWorkspaceContext, requireWorkspaceSubscriptionAccess);
-teacherSalaryRoutes.get("/", requirePermission(teacherSalaryPermissions.view.key), listTeacherSalariesController);
-teacherSalaryRoutes.post("/generate", requirePermission(teacherSalaryPermissions.generate.key), bulkGenerateTeacherSalariesController);
-teacherSalaryRoutes.post("/teachers/:teacherId/generate", requirePermission(teacherSalaryPermissions.generate.key), generateTeacherSalaryController);
-teacherSalaryRoutes.get("/teachers/:teacherId", requirePermission(teacherSalaryPermissions.view.key), teacherSalaryHistoryController);
-teacherSalaryRoutes.get("/:id/payments", requirePermission(teacherSalaryPermissions.view.key), async (req, res) => { const id = z.string().uuid().parse(req.params.id); const data = await withWorkspaceContext(req.workspaceContext!.workspaceId, (tx) => tx.execute(sql`select id, amount::text as amount, payment_method as "paymentMethod", payment_date as "paymentDate", note, created_at as "createdAt" from teacher_salary_payments where workspace_id=${req.workspaceContext!.workspaceId}::uuid and teacher_salary_id=${id}::uuid order by payment_date desc, created_at desc`)); res.json({ data: data.rows }); });
-teacherSalaryRoutes.post("/:id/payments", requirePermission(teacherSalaryPermissions.generate.key), async (req, res) => { const id=z.string().uuid().parse(req.params.id); const input=z.object({amount:z.string().regex(/^\d+(\.\d{1,2})?$/),paymentMethod:z.enum(["cash","bkash","nagad","rocket","other"]),paymentDate:z.iso.date().optional(),note:z.string().max(500).optional()}).parse(req.body); const data=await withWorkspaceContext(req.workspaceContext!.workspaceId,async tx=>{const r=await tx.execute(sql`insert into teacher_salary_payments (workspace_id,teacher_salary_id,amount,payment_method,payment_date,note,recorded_by_user_id) values (${req.workspaceContext!.workspaceId}::uuid,${id}::uuid,${input.amount}::numeric,${input.paymentMethod}::teacher_salary_payment_method,coalesce(${input.paymentDate ?? null}::date,current_date),${input.note ?? null},${req.authenticatedUser!.id}) returning id`); await tx.execute(sql`update teacher_salaries set paid_amount=(select coalesce(sum(amount),0) from teacher_salary_payments where teacher_salary_id=${id}::uuid and workspace_id=${req.workspaceContext!.workspaceId}::uuid), updated_at=now() where id=${id}::uuid and workspace_id=${req.workspaceContext!.workspaceId}::uuid`); return r.rows[0];}); res.status(201).json({data}); });
+teacherSalaryRoutes.get(
+  '/',
+  requirePermission(teacherSalaryPermissions.view.key),
+  listTeacherSalariesController
+);
+teacherSalaryRoutes.post(
+  '/generate',
+  requirePermission(teacherSalaryPermissions.generate.key),
+  bulkGenerateTeacherSalariesController
+);
+teacherSalaryRoutes.post(
+  '/teachers/:teacherId/generate',
+  requirePermission(teacherSalaryPermissions.generate.key),
+  generateTeacherSalaryController
+);
+teacherSalaryRoutes.get(
+  '/teachers/:teacherId',
+  requirePermission(teacherSalaryPermissions.view.key),
+  teacherSalaryHistoryController
+);
+teacherSalaryRoutes.get(
+  '/:id/payments',
+  requirePermission(teacherSalaryPermissions.view.key),
+  listTeacherSalaryPaymentsController
+);
+teacherSalaryRoutes.post(
+  '/:id/payments',
+  requirePermission(teacherSalaryPermissions.pay.key),
+  recordTeacherSalaryPaymentController
+);

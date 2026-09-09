@@ -1,28 +1,32 @@
-import { and, eq } from "drizzle-orm";
-import type { NextFunction, Request, Response } from "express";
-import { db } from "../database/client";
-import { workspaceMembers } from "../database/schema/workspaces";
-import { workspaceIdSchema } from "../validation/workspace.validation";
+import { and, eq } from 'drizzle-orm';
+import type { NextFunction, Request, Response } from 'express';
+import { db } from '../database/client';
+import { workspaceMembers } from '../database/schema/workspaces';
+import { workspaceIdSchema } from '../validation/workspace.validation';
 
-export async function requireWorkspaceContext(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireWorkspaceContext(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const userId = req.authenticatedUser?.id;
   if (!userId) {
     res.status(401).json({
       error: {
-        code: "UNAUTHENTICATED",
-        message: "A valid authentication session is required."
-      }
+        code: 'UNAUTHENTICATED',
+        message: 'A valid authentication session is required.',
+      },
     });
     return;
   }
 
-  const workspaceIdResult = workspaceIdSchema.safeParse(req.header("x-workspace-id"));
+  const workspaceIdResult = workspaceIdSchema.safeParse(req.header('x-workspace-id'));
   if (!workspaceIdResult.success) {
     res.status(400).json({
       error: {
-        code: "INVALID_WORKSPACE_ID",
-        message: "A valid X-Workspace-Id header is required."
-      }
+        code: 'INVALID_WORKSPACE_ID',
+        message: 'A valid X-Workspace-Id header is required.',
+      },
     });
     return;
   }
@@ -34,18 +38,25 @@ export async function requireWorkspaceContext(req: Request, res: Response, next:
         workspaceId: workspaceMembers.workspaceId,
         roleCode: workspaceMembers.roleCode,
         customRoleId: workspaceMembers.customRoleId,
-        status: workspaceMembers.status
+        status: workspaceMembers.status,
       })
       .from(workspaceMembers)
-      .where(and(eq(workspaceMembers.workspaceId, workspaceIdResult.data), eq(workspaceMembers.userId, userId)))
+      .where(
+        and(
+          eq(workspaceMembers.workspaceId, workspaceIdResult.data),
+          eq(workspaceMembers.userId, userId)
+        )
+      )
       .limit(1);
 
-    if (!membership || membership.status !== "active") {
+    if (!membership || membership.status !== 'active') {
       res.status(403).json({
         error: {
-          code: membership ? "WORKSPACE_MEMBER_INACTIVE" : "WORKSPACE_MEMBERSHIP_REQUIRED",
-          message: membership ? "Your membership in this workspace is inactive." : "You are not a member of this workspace."
-        }
+          code: membership ? 'WORKSPACE_MEMBER_INACTIVE' : 'WORKSPACE_MEMBERSHIP_REQUIRED',
+          message: membership
+            ? 'Your membership in this workspace is inactive.'
+            : 'You are not a member of this workspace.',
+        },
       });
       return;
     }
@@ -54,7 +65,7 @@ export async function requireWorkspaceContext(req: Request, res: Response, next:
       membershipId: membership.membershipId,
       workspaceId: membership.workspaceId,
       roleCode: membership.roleCode,
-      customRoleId: membership.customRoleId
+      customRoleId: membership.customRoleId,
     };
     next();
   } catch (error) {

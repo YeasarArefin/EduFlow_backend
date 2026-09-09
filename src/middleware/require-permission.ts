@@ -1,5 +1,5 @@
-import type { NextFunction, Request, Response } from "express";
-import { hasWorkspacePermission } from "../services/workspace-permissions";
+import type { NextFunction, Request, Response } from 'express';
+import { hasWorkspacePermission } from '../services/workspace-permissions.service';
 
 export function requirePermission(permissionKey: string) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -7,9 +7,9 @@ export function requirePermission(permissionKey: string) {
     if (!context) {
       res.status(403).json({
         error: {
-          code: "WORKSPACE_CONTEXT_REQUIRED",
-          message: "Workspace context is required."
-        }
+          code: 'WORKSPACE_CONTEXT_REQUIRED',
+          message: 'Workspace context is required.',
+        },
       });
       return;
     }
@@ -18,9 +18,9 @@ export function requirePermission(permissionKey: string) {
       if (!(await hasWorkspacePermission(context, permissionKey))) {
         res.status(403).json({
           error: {
-            code: "PERMISSION_REQUIRED",
-            message: "This permission is required."
-          }
+            code: 'PERMISSION_REQUIRED',
+            message: 'This permission is required.',
+          },
         });
         return;
       }

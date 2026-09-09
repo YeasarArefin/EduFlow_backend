@@ -1,48 +1,45 @@
-import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
-import { db } from "../database/client";
-import { plans, subscriptions, paymentRequests, workspaceEntitlementOverrides } from "../database/schema/subscriptions";
-import { workspaces } from "../database/schema/workspaces";
-import { deriveSubscriptionAccessState, type SubscriptionAccessStatus } from "./subscription-access";
-import { AppError } from "../middleware/error-handler";
+import { and, asc, count, desc, eq, gt, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import { db } from '../database/client';
+import {
+  plans,
+  subscriptions,
+  paymentRequests,
+  workspaceEntitlementOverrides,
+} from '../database/schema/subscriptions';
+import { workspaces } from '../database/schema/workspaces';
+import { AppError } from '../middleware/error-handler';
+import type { SubscriptionAccessStatus } from '../types/subscription';
+import type { ListWorkspacesInput } from '../types/workspace';
+import { deriveSubscriptionAccessState } from './subscription-access.service';
 
 export const workspaceListSubscriptionStatuses = [
-  "trial",
-  "pending",
-  "active",
-  "renewal_due",
-  "expired",
-  "cancelled",
-  "suspended"
+  'trial',
+  'pending',
+  'active',
+  'renewal_due',
+  'expired',
+  'cancelled',
+  'suspended',
 ] as const;
 export const workspaceListWorkspaceStatuses = [
-  "pending",
-  "active",
-  "locked",
-  "suspended",
-  "scheduled_deletion",
-  "deleted"
+  'pending',
+  'active',
+  'locked',
+  'suspended',
+  'scheduled_deletion',
+  'deleted',
 ] as const;
 export const workspaceListAccessStatuses = [
-  "verification_pending",
-  "payment_pending",
-  "trial",
-  "active",
-  "renewal_due",
-  "subscription_expired",
-  "locked",
-  "scheduled_for_deletion",
-  "suspended"
+  'verification_pending',
+  'payment_pending',
+  'trial',
+  'active',
+  'renewal_due',
+  'subscription_expired',
+  'locked',
+  'scheduled_for_deletion',
+  'suspended',
 ] as const satisfies readonly SubscriptionAccessStatus[];
-
-export type ListWorkspacesInput = {
-  page: number;
-  limit: number;
-  search?: string;
-  workspaceStatus?: (typeof workspaceListWorkspaceStatuses)[number];
-  subscriptionStatus?: (typeof workspaceListSubscriptionStatuses)[number];
-  accessStatus?: SubscriptionAccessStatus;
-  lifecycleQueue?: boolean;
-};
 
 const accessStatusExpression = (now: Date) => sql<string>`case
   when ${workspaces.status} in ('locked', 'deleted') then 'locked'
@@ -61,11 +58,14 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
   const now = new Date();
   const filters = [];
   if (input.search)
-    filters.push(or(ilike(workspaces.name, `%${input.search}%`), ilike(workspaces.slug, `%${input.search}%`)));
+    filters.push(
+      or(ilike(workspaces.name, `%${input.search}%`), ilike(workspaces.slug, `%${input.search}%`))
+    );
   if (input.workspaceStatus) filters.push(eq(workspaces.status, input.workspaceStatus));
   if (input.subscriptionStatus) filters.push(eq(subscriptions.status, input.subscriptionStatus));
   if (input.accessStatus) filters.push(eq(accessStatusExpression(now), input.accessStatus));
-  if (input.lifecycleQueue) filters.push(inArray(workspaces.status, ["locked", "scheduled_deletion"]));
+  if (input.lifecycleQueue)
+    filters.push(inArray(workspaces.status, ['locked', 'scheduled_deletion']));
   const where = filters.length ? and(...filters) : undefined;
   const [rows, totalRows] = await Promise.all([
     db
@@ -84,7 +84,7 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
         trialEndsAt: subscriptions.trialEndsAt,
         planId: plans.id,
         planName: plans.name,
-        planSlug: plans.slug
+        planSlug: plans.slug,
       })
       .from(workspaces)
       .leftJoin(
@@ -115,7 +115,7 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
           )
         )
       )
-      .where(where)
+      .where(where),
   ]);
   return {
     data: rows.map((row) => {
@@ -126,10 +126,10 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
               status: row.subscriptionStatus,
               startsAt: row.startsAt,
               expiresAt: row.expiresAt,
-              trialEndsAt: row.trialEndsAt
+              trialEndsAt: row.trialEndsAt,
             }
           : null,
-        now
+        now,
       });
       return {
         id: row.id,
@@ -146,17 +146,17 @@ export async function listWorkspaces(input: ListWorkspacesInput) {
               startsAt: row.startsAt,
               expiresAt: row.expiresAt,
               trialEndsAt: row.trialEndsAt,
-              plan: row.planId ? { id: row.planId, name: row.planName, slug: row.planSlug } : null
+              plan: row.planId ? { id: row.planId, name: row.planName, slug: row.planSlug } : null,
             }
           : null,
         access: {
           allowed: access.allowed,
           status: access.status,
-          reason: access.reason
-        }
+          reason: access.reason,
+        },
       };
     }),
-    total: Number(totalRows[0]?.total ?? 0)
+    total: Number(totalRows[0]?.total ?? 0),
   };
 }
 
@@ -187,7 +187,7 @@ export async function getWorkspaceDetail(workspaceId: string) {
       planSlug: plans.slug,
       planPriceMinor: plans.priceMinor,
       planDurationDays: plans.durationDays,
-      planTrialDays: plans.trialDays
+      planTrialDays: plans.trialDays,
     })
     .from(workspaces)
     .leftJoin(
@@ -203,7 +203,7 @@ export async function getWorkspaceDetail(workspaceId: string) {
     .leftJoin(plans, eq(plans.id, subscriptions.planId))
     .where(eq(workspaces.id, workspaceId))
     .limit(1);
-  if (!workspace) throw new AppError("WORKSPACE_NOT_FOUND", "The workspace was not found.", 404);
+  if (!workspace) throw new AppError('WORKSPACE_NOT_FOUND', 'The workspace was not found.', 404);
 
   const [history, payments, overrides] = await Promise.all([
     db
@@ -217,7 +217,7 @@ export async function getWorkspaceDetail(workspaceId: string) {
         expiresAt: subscriptions.expiresAt,
         trialEndsAt: subscriptions.trialEndsAt,
         renewalDueAt: subscriptions.renewalDueAt,
-        createdAt: subscriptions.createdAt
+        createdAt: subscriptions.createdAt,
       })
       .from(subscriptions)
       .leftJoin(plans, eq(plans.id, subscriptions.planId))
@@ -236,7 +236,7 @@ export async function getWorkspaceDetail(workspaceId: string) {
         transactionId: paymentRequests.transactionId,
         status: paymentRequests.status,
         reviewedAt: paymentRequests.reviewedAt,
-        createdAt: paymentRequests.createdAt
+        createdAt: paymentRequests.createdAt,
       })
       .from(paymentRequests)
       .leftJoin(plans, eq(plans.id, paymentRequests.planId))
@@ -251,16 +251,19 @@ export async function getWorkspaceDetail(workspaceId: string) {
         limit: workspaceEntitlementOverrides.limitOverride,
         reason: workspaceEntitlementOverrides.reason,
         expiresAt: workspaceEntitlementOverrides.expiresAt,
-        createdAt: workspaceEntitlementOverrides.createdAt
+        createdAt: workspaceEntitlementOverrides.createdAt,
       })
       .from(workspaceEntitlementOverrides)
       .where(
         and(
           eq(workspaceEntitlementOverrides.workspaceId, workspaceId),
-          or(isNull(workspaceEntitlementOverrides.expiresAt), gt(workspaceEntitlementOverrides.expiresAt, new Date()))
+          or(
+            isNull(workspaceEntitlementOverrides.expiresAt),
+            gt(workspaceEntitlementOverrides.expiresAt, new Date())
+          )
         )
       )
-      .orderBy(desc(workspaceEntitlementOverrides.createdAt))
+      .orderBy(desc(workspaceEntitlementOverrides.createdAt)),
   ]);
   const now = new Date();
   const access = deriveSubscriptionAccessState({
@@ -270,10 +273,10 @@ export async function getWorkspaceDetail(workspaceId: string) {
           status: workspace.subscriptionStatus,
           startsAt: workspace.startsAt,
           expiresAt: workspace.expiresAt,
-          trialEndsAt: workspace.trialEndsAt
+          trialEndsAt: workspace.trialEndsAt,
         }
       : null,
-    now
+    now,
   });
   return {
     workspace: {
@@ -288,7 +291,7 @@ export async function getWorkspaceDetail(workspaceId: string) {
       updatedAt: workspace.updatedAt,
       activatedAt: workspace.activatedAt,
       lockedAt: workspace.lockedAt,
-      scheduledDeleteAt: workspace.scheduledDeleteAt
+      scheduledDeleteAt: workspace.scheduledDeleteAt,
     },
     subscription: workspace.subscriptionId
       ? {
@@ -306,24 +309,24 @@ export async function getWorkspaceDetail(workspaceId: string) {
                 slug: workspace.planSlug,
                 priceMinor: workspace.planPriceMinor?.toString(),
                 durationDays: workspace.planDurationDays,
-                trialDays: workspace.planTrialDays
+                trialDays: workspace.planTrialDays,
               }
-            : null
+            : null,
         }
       : null,
     access,
     subscriptionHistory: history.map((item) => ({
       ...item,
-      plan: item.planId ? { id: item.planId, name: item.planName, slug: item.planSlug } : null
+      plan: item.planId ? { id: item.planId, name: item.planName, slug: item.planSlug } : null,
     })),
     recentPayments: payments.map((item) => ({
       ...item,
       amountMinor: item.amountMinor.toString(),
-      plan: item.planId ? { id: item.planId, name: item.planName, slug: item.planSlug } : null
+      plan: item.planId ? { id: item.planId, name: item.planName, slug: item.planSlug } : null,
     })),
     activeEntitlementOverrides: overrides.map((item) => ({
       ...item,
-      limit: item.limit?.toString() ?? null
-    }))
+      limit: item.limit?.toString() ?? null,
+    })),
   };
 }

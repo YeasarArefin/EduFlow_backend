@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const permissionCode = z.number().int().positive();
 const uniqueCodes = <T extends { permissionCode: number }>(items: T[]) =>
@@ -14,7 +14,7 @@ export const createRoleSchema = z
     permissions: z
       .array(z.object({ permissionCode, allowed: z.boolean() }).strict())
       .max(200)
-      .refine(uniqueCodes, "Permission codes must be unique.")
+      .refine(uniqueCodes, 'Permission codes must be unique.'),
   })
   .strict();
 export const updateRoleSchema = createRoleSchema;
@@ -23,6 +23,6 @@ export const updateMemberOverridesSchema = z
     overrides: z
       .array(z.object({ permissionCode, allowed: z.boolean() }).strict())
       .max(200)
-      .refine(uniqueCodes, "Permission codes must be unique.")
+      .refine(uniqueCodes, 'Permission codes must be unique.'),
   })
   .strict();

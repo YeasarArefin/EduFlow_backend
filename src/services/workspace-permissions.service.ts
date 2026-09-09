@@ -1,15 +1,18 @@
-import { and, eq } from "drizzle-orm";
-import { withWorkspaceContext } from "../database/client";
-import { permissions, rolePermissions, workspaceRoleCodes } from "../database/schema/roles";
+import { and, eq } from 'drizzle-orm';
+import { withWorkspaceContext } from '../database/client';
+import { permissions, rolePermissions, workspaceRoleCodes } from '../database/schema/roles';
 import {
   memberPermissionOverrides,
   workspaceCustomRolePermissions,
-  workspaceRolePermissionOverrides
-} from "../database/schema/workspaces";
-import type { WorkspaceContext } from "../types/workspace-context";
+  workspaceRolePermissionOverrides,
+} from '../database/schema/workspaces';
+import type { WorkspaceContext } from '../types/workspace';
 
 /** Resolves a member's effective permission: role grant first, then an explicit override. */
-export async function hasWorkspacePermission(context: WorkspaceContext, permissionKey: string): Promise<boolean> {
+export async function hasWorkspacePermission(
+  context: WorkspaceContext,
+  permissionKey: string
+): Promise<boolean> {
   if (context.roleCode === workspaceRoleCodes.owner) return true;
 
   return withWorkspaceContext(context.workspaceId, async (tx) => {
@@ -37,7 +40,10 @@ export async function hasWorkspacePermission(context: WorkspaceContext, permissi
           .select({ allowed: rolePermissions.permissionCode })
           .from(rolePermissions)
           .where(
-            and(eq(rolePermissions.roleCode, context.roleCode), eq(rolePermissions.permissionCode, permission.code))
+            and(
+              eq(rolePermissions.roleCode, context.roleCode),
+              eq(rolePermissions.permissionCode, permission.code)
+            )
           )
           .limit(1);
 
@@ -67,7 +73,9 @@ export async function hasWorkspacePermission(context: WorkspaceContext, permissi
 
     return (
       override?.allowed ??
-      (context.customRoleId ? Boolean(roleGrant?.allowed) : (workspaceRoleOverride?.allowed ?? Boolean(roleGrant)))
+      (context.customRoleId
+        ? Boolean(roleGrant?.allowed)
+        : (workspaceRoleOverride?.allowed ?? Boolean(roleGrant)))
     );
   });
 }

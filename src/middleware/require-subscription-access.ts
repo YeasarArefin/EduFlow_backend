@@ -1,5 +1,5 @@
-import type { NextFunction, Request, Response } from "express";
-import { resolveWorkspaceSubscriptionAccess } from "../services/subscription-access";
+import type { NextFunction, Request, Response } from 'express';
+import { resolveWorkspaceSubscriptionAccess } from '../services/subscription-access.service';
 
 export async function requireWorkspaceSubscriptionAccess(
   req: Request,
@@ -10,9 +10,9 @@ export async function requireWorkspaceSubscriptionAccess(
   if (!workspaceId) {
     res.status(403).json({
       error: {
-        code: "WORKSPACE_CONTEXT_REQUIRED",
-        message: "Workspace context is required."
-      }
+        code: 'WORKSPACE_CONTEXT_REQUIRED',
+        message: 'Workspace context is required.',
+      },
     });
     return;
   }
@@ -22,10 +22,10 @@ export async function requireWorkspaceSubscriptionAccess(
     if (!access.allowed) {
       res.status(403).json({
         error: {
-          code: "SUBSCRIPTION_ACCESS_REQUIRED",
+          code: 'SUBSCRIPTION_ACCESS_REQUIRED',
           message: access.reason,
-          status: access.status
-        }
+          status: access.status,
+        },
       });
       return;
     }

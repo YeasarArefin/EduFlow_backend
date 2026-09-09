@@ -1,5 +1,5 @@
-import type { NextFunction, Request, Response } from "express";
-import { resolveWorkspaceEntitlements } from "../services/workspace-entitlements";
+import type { NextFunction, Request, Response } from 'express';
+import { resolveWorkspaceEntitlements } from '../services/workspace-entitlements.service';
 
 export function requireFeatureEntitlement(featureKey: string) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -7,9 +7,9 @@ export function requireFeatureEntitlement(featureKey: string) {
     if (!workspaceId) {
       res.status(403).json({
         error: {
-          code: "WORKSPACE_CONTEXT_REQUIRED",
-          message: "Workspace context is required."
-        }
+          code: 'WORKSPACE_CONTEXT_REQUIRED',
+          message: 'Workspace context is required.',
+        },
       });
       return;
     }
@@ -19,10 +19,10 @@ export function requireFeatureEntitlement(featureKey: string) {
       if (!entitlements.entitlements[featureKey]?.enabled) {
         res.status(403).json({
           error: {
-            code: "FEATURE_ENTITLEMENT_REQUIRED",
-            message: "This feature is not enabled for the workspace.",
-            featureKey
-          }
+            code: 'FEATURE_ENTITLEMENT_REQUIRED',
+            message: 'This feature is not enabled for the workspace.',
+            featureKey,
+          },
         });
         return;
       }

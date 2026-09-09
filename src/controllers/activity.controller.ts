@@ -1,11 +1,13 @@
-import type { RequestHandler } from "express";
-import { listPlatformActivity } from "../services/audit-log.service";
-import { activityQuerySchema } from "../validation/audit-log.validation";
+import type { RequestHandler } from 'express';
+import { listPlatformActivity } from '../services/audit-log.service';
+import { activityQuerySchema } from '../validation/audit-log.validation';
 
 export const listActivity: RequestHandler = async (req, res, next) => {
   const parsed = activityQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Request validation failed." } });
+    res
+      .status(400)
+      .json({ error: { code: 'VALIDATION_ERROR', message: 'Request validation failed.' } });
     return;
   }
   try {

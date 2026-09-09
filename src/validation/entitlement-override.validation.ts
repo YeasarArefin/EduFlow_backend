@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { bigintSchema, uuidSchema } from "./common.validation";
+import { z } from 'zod';
+import { bigintSchema, uuidSchema } from './common.validation';
 
 export const entitlementOverrideSchema = z
   .object({
@@ -7,7 +7,7 @@ export const entitlementOverrideSchema = z
     enabledOverride: z.boolean().nullable(),
     limitOverride: bigintSchema.nullable(),
     reason: z.string().trim().min(1).max(500),
-    expiresAt: z.coerce.date().nullable()
+    expiresAt: z.coerce.date().nullable(),
   })
   .strict();
 export const entitlementOverridePatchSchema = entitlementOverrideSchema.partial();

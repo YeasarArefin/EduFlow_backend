@@ -1,22 +1,18 @@
-import { and, count, desc, eq, getTableColumns, ilike, or, sql, type SQL } from "drizzle-orm";
-import type { z } from "zod";
-import { withWorkspaceContext } from "../database/client";
-import { batches, batchEnrollments } from "../database/schema/batches";
-import { studentFees } from "../database/schema/fees";
-import { students } from "../database/schema/students";
-import { workspaceSettings } from "../database/schema/workspaces";
-import { AppError } from "../middleware/error-handler";
-import type { feeHistoryQuerySchema } from "../validation/student-fee.validation";
-import { recordAuditLog } from "./audit-log.service";
-
-type Transaction = Parameters<Parameters<typeof withWorkspaceContext>[1]>[0];
-type Fee = typeof studentFees.$inferSelect;
-type FeeQuery = z.infer<typeof feeHistoryQuerySchema>;
+import { and, count, desc, eq, getTableColumns, ilike, or, sql, type SQL } from 'drizzle-orm';
+import { withWorkspaceContext } from '../database/client';
+import { batches, batchEnrollments } from '../database/schema/batches';
+import { studentFees } from '../database/schema/fees';
+import { students } from '../database/schema/students';
+import { workspaceSettings } from '../database/schema/workspaces';
+import { AppError } from '../middleware/error-handler';
+import { recordAuditLog } from './audit-log.service';
+import type { WorkspaceTransaction as Transaction } from '../types/common';
+import type { StudentFee, StudentFeeQuery as FeeQuery } from '../types/student';
 
 // PostgreSQL numeric arithmetic keeps money exact. Overdue is a date-sensitive
 // projection, so reading or retrying a fee never needs to rewrite its snapshot.
 function feeStatusExpression(expected: SQL, discount: SQL, paid: SQL, grace: SQL) {
-  return sql<Fee["status"]>`case
+  return sql<StudentFee['status']>`case
     when ${paid} > ${expected} - ${discount} then 'overpaid'
     when ${expected} = ${discount} then 'waived'
     when ${paid} = ${expected} - ${discount} then 'paid'
@@ -26,38 +22,76 @@ function feeStatusExpression(expected: SQL, discount: SQL, paid: SQL, grace: SQL
 }
 
 const currentFeeStatus = feeStatusExpression(
-  sql`${studentFees.expectedAmount}`, sql`${studentFees.discountAmount}`,
-  sql`${studentFees.paidAmount}`, sql`${studentFees.graceDate}`,
+  sql`${studentFees.expectedAmount}`,
+  sql`${studentFees.discountAmount}`,
+  sql`${studentFees.paidAmount}`,
+  sql`${studentFees.graceDate}`
 );
 const feeSelection = { ...getTableColumns(studentFees), status: currentFeeStatus };
 
 function mapFee(
-  row: Fee,
+  row: StudentFee,
   student?: { id: string; fullName: string; studentCode: string; phone: string | null } | null,
-  batch?: { id: string; name: string } | null,
+  batch?: { id: string; name: string } | null
 ) {
   return {
-    id: row.id, studentId: row.studentId, enrollmentId: row.enrollmentId,
-    feeMonth: row.feeMonth, expectedAmount: row.expectedAmount,
-    discountAmount: row.discountAmount, paidAmount: row.paidAmount,
-    dueAmount: row.dueAmount, status: row.status, dueDate: row.dueDate,
-    graceDate: row.graceDate, createdAt: row.createdAt, updatedAt: row.updatedAt,
-    ...(student?.id ? { student: { id: student.id, fullName: student.fullName, studentCode: student.studentCode, phone: student.phone } } : {}),
+    id: row.id,
+    studentId: row.studentId,
+    enrollmentId: row.enrollmentId,
+    feeMonth: row.feeMonth,
+    expectedAmount: row.expectedAmount,
+    discountAmount: row.discountAmount,
+    paidAmount: row.paidAmount,
+    dueAmount: row.dueAmount,
+    status: row.status,
+    dueDate: row.dueDate,
+    graceDate: row.graceDate,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    ...(student?.id
+      ? {
+          student: {
+            id: student.id,
+            fullName: student.fullName,
+            studentCode: student.studentCode,
+            phone: student.phone,
+          },
+        }
+      : {}),
     ...(batch?.id ? { batch: { id: batch.id, name: batch.name } } : {}),
   };
 }
 
-
-async function insertEligibleFees(tx: Transaction, workspaceId: string, actorUserId: string, feeMonth: string, enrollmentId?: string) {
-  const [settings] = await tx.select({ dueDay: workspaceSettings.defaultFeeDueDay, graceDays: workspaceSettings.gracePeriodDays })
-    .from(workspaceSettings).where(eq(workspaceSettings.workspaceId, workspaceId));
+async function insertEligibleFees(
+  tx: Transaction,
+  workspaceId: string,
+  actorUserId: string,
+  feeMonth: string,
+  enrollmentId?: string
+) {
+  const [settings] = await tx
+    .select({
+      dueDay: workspaceSettings.defaultFeeDueDay,
+      graceDays: workspaceSettings.gracePeriodDays,
+    })
+    .from(workspaceSettings)
+    .where(eq(workspaceSettings.workspaceId, workspaceId));
   const dueDay = settings?.dueDay ?? 31;
   const graceDays = settings?.graceDays ?? 0;
   if (dueDay < 1 || dueDay > 31 || graceDays < 0 || graceDays > 365) {
-    throw new AppError("FEE_SETTINGS_INVALID", "Fee due day must be 1–31 and grace period 0–365 days.", 409);
+    throw new AppError(
+      'FEE_SETTINGS_INVALID',
+      'Fee due day must be 1–31 and grace period 0–365 days.',
+      409
+    );
   }
 
-  const status = feeStatusExpression(sql`expected_amount`, sql`discount_amount`, sql`0::numeric`, sql`grace_date`);
+  const status = feeStatusExpression(
+    sql`expected_amount`,
+    sql`discount_amount`,
+    sql`0::numeric`,
+    sql`grace_date`
+  );
   const result = await tx.execute<{ eligible: number; created: number }>(sql`
     with candidates as (
       select e.id as enrollment_id, e.student_id,
@@ -92,7 +126,10 @@ async function insertEligibleFees(tx: Transaction, workspaceId: string, actorUse
   const counts = result.rows[0];
   if (counts.created > 0) {
     await recordAuditLog(tx, {
-      workspaceId, actorUserId, action: "fees.generated", entityType: "student_fees",
+      workspaceId,
+      actorUserId,
+      action: 'fees.generated',
+      entityType: 'student_fees',
       entityId: enrollmentId ?? workspaceId,
       metadata: { feeMonth, created: counts.created, eligible: counts.eligible },
     });
@@ -100,33 +137,57 @@ async function insertEligibleFees(tx: Transaction, workspaceId: string, actorUse
   return { ...counts, existing: counts.eligible - counts.created };
 }
 
-export async function generateEnrollmentFee(workspaceId: string, actorUserId: string, enrollmentId: string, feeMonth: string) {
+export async function generateEnrollmentFee(
+  workspaceId: string,
+  actorUserId: string,
+  enrollmentId: string,
+  feeMonth: string
+) {
   return withWorkspaceContext(workspaceId, async (tx) => {
-    const where = and(eq(studentFees.workspaceId, workspaceId), eq(studentFees.enrollmentId, enrollmentId), eq(studentFees.feeMonth, feeMonth));
+    const where = and(
+      eq(studentFees.workspaceId, workspaceId),
+      eq(studentFees.enrollmentId, enrollmentId),
+      eq(studentFees.feeMonth, feeMonth)
+    );
     const [existing] = await tx.select(feeSelection).from(studentFees).where(where).limit(1);
     if (existing) return { fee: mapFee(existing), created: false };
-    const [enrollment] = await tx.select({ id: batchEnrollments.id }).from(batchEnrollments)
-      .where(and(eq(batchEnrollments.id, enrollmentId), eq(batchEnrollments.workspaceId, workspaceId))).limit(1);
-    if (!enrollment) throw new AppError("ENROLLMENT_NOT_FOUND", "The enrollment was not found.", 404);
+    const [enrollment] = await tx
+      .select({ id: batchEnrollments.id })
+      .from(batchEnrollments)
+      .where(
+        and(eq(batchEnrollments.id, enrollmentId), eq(batchEnrollments.workspaceId, workspaceId))
+      )
+      .limit(1);
+    if (!enrollment)
+      throw new AppError('ENROLLMENT_NOT_FOUND', 'The enrollment was not found.', 404);
     const counts = await insertEligibleFees(tx, workspaceId, actorUserId, feeMonth, enrollmentId);
     const [fee] = await tx.select(feeSelection).from(studentFees).where(where).limit(1);
-    if (!fee) throw new AppError("ENROLLMENT_NOT_FEE_ELIGIBLE", "The enrollment is not eligible for fees in this month.", 409);
+    if (!fee)
+      throw new AppError(
+        'ENROLLMENT_NOT_FEE_ELIGIBLE',
+        'The enrollment is not eligible for fees in this month.',
+        409
+      );
     return { fee: mapFee(fee), created: counts.created > 0 };
   });
 }
 
 export async function bulkGenerateFees(workspaceId: string, actorUserId: string, feeMonth: string) {
   return withWorkspaceContext(workspaceId, async (tx) => ({
-    feeMonth, ...await insertEligibleFees(tx, workspaceId, actorUserId, feeMonth),
+    feeMonth,
+    ...(await insertEligibleFees(tx, workspaceId, actorUserId, feeMonth)),
   }));
 }
 
 export async function listStudentFees(workspaceId: string, query: FeeQuery, studentId?: string) {
   return withWorkspaceContext(workspaceId, async (tx) => {
     if (studentId) {
-      const [student] = await tx.select({ id: students.id }).from(students)
-        .where(and(eq(students.id, studentId), eq(students.workspaceId, workspaceId))).limit(1);
-      if (!student) throw new AppError("STUDENT_NOT_FOUND", "The student was not found.", 404);
+      const [student] = await tx
+        .select({ id: students.id })
+        .from(students)
+        .where(and(eq(students.id, studentId), eq(students.workspaceId, workspaceId)))
+        .limit(1);
+      if (!student) throw new AppError('STUDENT_NOT_FOUND', 'The student was not found.', 404);
     }
     const where = and(
       eq(studentFees.workspaceId, workspaceId),
@@ -136,9 +197,9 @@ export async function listStudentFees(workspaceId: string, query: FeeQuery, stud
       query.search
         ? or(
             ilike(students.fullName, `%${query.search}%`),
-            ilike(students.studentCode, `%${query.search}%`),
+            ilike(students.studentCode, `%${query.search}%`)
           )
-        : undefined,
+        : undefined
     );
 
     const rows = await tx
@@ -156,9 +217,21 @@ export async function listStudentFees(workspaceId: string, query: FeeQuery, stud
         },
       })
       .from(studentFees)
-      .leftJoin(students, and(eq(students.id, studentFees.studentId), eq(students.workspaceId, workspaceId)))
-      .leftJoin(batchEnrollments, and(eq(batchEnrollments.id, studentFees.enrollmentId), eq(batchEnrollments.workspaceId, workspaceId)))
-      .leftJoin(batches, and(eq(batches.id, batchEnrollments.batchId), eq(batches.workspaceId, workspaceId)))
+      .leftJoin(
+        students,
+        and(eq(students.id, studentFees.studentId), eq(students.workspaceId, workspaceId))
+      )
+      .leftJoin(
+        batchEnrollments,
+        and(
+          eq(batchEnrollments.id, studentFees.enrollmentId),
+          eq(batchEnrollments.workspaceId, workspaceId)
+        )
+      )
+      .leftJoin(
+        batches,
+        and(eq(batches.id, batchEnrollments.batchId), eq(batches.workspaceId, workspaceId))
+      )
       .where(where)
       .orderBy(desc(studentFees.feeMonth), desc(studentFees.id))
       .limit(query.limit)
@@ -167,7 +240,10 @@ export async function listStudentFees(workspaceId: string, query: FeeQuery, stud
     const [totals] = await tx
       .select({ total: count() })
       .from(studentFees)
-      .leftJoin(students, and(eq(students.id, studentFees.studentId), eq(students.workspaceId, workspaceId)))
+      .leftJoin(
+        students,
+        and(eq(students.id, studentFees.studentId), eq(students.workspaceId, workspaceId))
+      )
       .where(where);
 
     let summary:
@@ -210,5 +286,3 @@ export async function listStudentFees(workspaceId: string, query: FeeQuery, stud
     };
   });
 }
-
-

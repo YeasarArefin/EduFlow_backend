@@ -1,11 +1,10 @@
-import type { WorkspaceContext } from "./workspace-context";
+import type { AuthenticatedUser } from './auth';
+import type { WorkspaceContext } from './workspace';
 
 declare global {
   namespace Express {
     interface Request {
-      authenticatedUser?: {
-        id: string;
-      };
+      authenticatedUser?: AuthenticatedUser;
       workspaceContext?: WorkspaceContext;
     }
   }

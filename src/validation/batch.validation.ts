@@ -1,19 +1,22 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-const batchStatusSchema = z.enum(["active", "inactive", "archived"]);
+const batchStatusSchema = z.enum(['active', 'inactive', 'archived']);
 const nullableAcademicId = z.string().uuid().nullable().optional();
 const nullableDate = z.iso.date().nullable().optional();
 
 export function takaToMinor(val: number | string | bigint): bigint {
-  if (typeof val === "bigint") return val;
-  const num = typeof val === "string" ? parseFloat(val) : val;
+  if (typeof val === 'bigint') return val;
+  const num = typeof val === 'string' ? parseFloat(val) : val;
   if (isNaN(num) || num < 0) return 0n;
   return BigInt(Math.round(num * 100));
 }
 
 const feeTakaSchema = z.union([
   z.number().min(0),
-  z.string().trim().regex(/^\d+(?:\.\d{1,2})?$/, "Must be a valid non-negative amount in Taka."),
+  z
+    .string()
+    .trim()
+    .regex(/^\d+(?:\.\d{1,2})?$/, 'Must be a valid non-negative amount in Taka.'),
 ]);
 
 export const createBatchSchema = z
@@ -28,13 +31,10 @@ export const createBatchSchema = z
     status: batchStatusSchema.optional(),
   })
   .strict()
-  .refine(
-    (data) => data.monthlyFee !== undefined || data.monthlyFeeMinor !== undefined,
-    {
-      message: "Monthly fee (in Taka) or monthly fee minor (in poisha) is required.",
-      path: ["monthlyFee"],
-    },
-  )
+  .refine((data) => data.monthlyFee !== undefined || data.monthlyFeeMinor !== undefined, {
+    message: 'Monthly fee (in Taka) or monthly fee minor (in poisha) is required.',
+    path: ['monthlyFee'],
+  })
   .transform((data) => ({
     name: data.name,
     classLevelId: data.classLevelId,
@@ -42,9 +42,7 @@ export const createBatchSchema = z
     academicGroupId: data.academicGroupId ?? null,
     startDate: data.startDate ?? null,
     monthlyFeeMinor:
-      data.monthlyFee !== undefined
-        ? takaToMinor(data.monthlyFee)
-        : data.monthlyFeeMinor!,
+      data.monthlyFee !== undefined ? takaToMinor(data.monthlyFee) : data.monthlyFeeMinor!,
     status: data.status,
   }));
 
@@ -57,11 +55,11 @@ export const updateBatchSchema = z
     startDate: nullableDate,
     monthlyFee: feeTakaSchema.optional(),
     monthlyFeeMinor: z.coerce.bigint().min(0n).optional(),
-    status: z.enum(["active", "inactive"]).optional(),
+    status: z.enum(['active', 'inactive']).optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
-    message: "At least one field must be provided.",
+    message: 'At least one field must be provided.',
   })
   .transform((data) => {
     const result: {
@@ -71,7 +69,7 @@ export const updateBatchSchema = z
       academicGroupId?: string | null;
       startDate?: string | null;
       monthlyFeeMinor?: bigint;
-      status?: "active" | "inactive";
+      status?: 'active' | 'inactive';
     } = {};
 
     if (data.name !== undefined) result.name = data.name;

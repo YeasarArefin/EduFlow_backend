@@ -136,6 +136,50 @@ paths:
         "400": { $ref: "#/components/responses/ValidationError" }
         "404": { description: MEMBER_NOT_FOUND }
         "409": { description: OWNER_MEMBER_PROTECTED }
+  /api/v1/workspace-settings:
+    get:
+      summary: Get workspace settings
+      operationId: getWorkspaceSettings
+      description: Workspace Owner only. Returns coaching profile, billing, SMS, and reminder settings for the server-resolved workspace.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      responses:
+        "200": { description: Current workspace settings }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Active workspace subscription and Workspace Owner role required }
+    patch:
+      summary: Update workspace settings
+      operationId: updateWorkspaceSettings
+      description: Workspace Owner only. Updates only supplied coaching profile, billing, SMS, or reminder fields and records an audit event.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 150 }
+                phone: { type: string, nullable: true, maxLength: 30 }
+                email: { type: string, nullable: true, format: email, maxLength: 255 }
+                address: { type: string, nullable: true, maxLength: 1000 }
+                defaultFeeDueDay: { type: integer, nullable: true, minimum: 1, maximum: 31 }
+                gracePeriodDays: { type: integer, minimum: 0, maximum: 365 }
+                receiptPrefix: { type: string, nullable: true, maxLength: 20 }
+                smsDefaultSenderId: { type: string, nullable: true, maxLength: 100 }
+                absenceEmailEnabled: { type: boolean }
+                absenceEmailRecipient: { type: string, enum: [guardian, student, both] }
+                paymentConfirmationEnabled: { type: boolean }
+                paymentReminderEnabled: { type: boolean }
+                graceReminderEnabled: { type: boolean }
+                overdueWarningEnabled: { type: boolean }
+      responses:
+        "200": { description: Updated workspace settings }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Active workspace subscription and Workspace Owner role required }
   /api/v1/teacher-salaries:
     get:
       summary: List workspace teacher salary snapshots
@@ -175,6 +219,45 @@ paths:
       security: [{ betterAuth: [] }]
       parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } }]
       responses: { "200": { description: Paginated teacher salary history }, "404": { description: TEACHER_NOT_FOUND } }
+  /api/v1/teacher-salaries/{id}/payments:
+    get:
+      summary: List payments for a teacher salary ledger
+      operationId: listTeacherSalaryPayments
+      description: Requires fees.view. Returns immutable payments only for the requested salary ledger in the server-resolved workspace.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: Teacher salary payment history }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Workspace subscription access and fees.view required }
+        "404": { description: TEACHER_SALARY_NOT_FOUND }
+    post:
+      summary: Record a teacher salary payment
+      operationId: recordTeacherSalaryPayment
+      description: Requires fees.collect. Atomically records an immutable payout and updates the salary balance. Payments above the remaining balance are rejected.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [amount, paymentMethod]
+              properties:
+                amount: { oneOf: [{ type: string, pattern: '^\d+(\.\d{1,2})?$' }, { type: number, exclusiveMinimum: 0 }] }
+                paymentMethod: { type: string, enum: [cash, bkash, nagad, rocket, other] }
+                paymentDate: { type: string, format: date }
+                note: { type: string, maxLength: 500 }
+      responses:
+        "201": { description: Recorded payment and updated salary balance }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { description: Workspace subscription access and fees.collect required }
+        "404": { description: TEACHER_SALARY_NOT_FOUND }
+        "409": { description: TEACHER_SALARY_ALREADY_SETTLED or EXCESS_SALARY_PAYMENT_NOT_ALLOWED }
   /api/v1/attendance-sessions:
     get:
       summary: List attendance sessions

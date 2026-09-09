@@ -1,22 +1,18 @@
-import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
-import type { z } from "zod";
-import { withWorkspaceContext } from "../database/client";
-import { studentFees, studentPayments } from "../database/schema/fees";
-import { students } from "../database/schema/students";
-import { workspaceSettings } from "../database/schema/workspaces";
-import { AppError } from "../middleware/error-handler";
+import { and, count, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { withWorkspaceContext } from '../database/client';
+import { studentFees, studentPayments } from '../database/schema/fees';
+import { students } from '../database/schema/students';
+import { workspaceSettings } from '../database/schema/workspaces';
+import { AppError } from '../middleware/error-handler';
+import { recordAuditLog } from './audit-log.service';
+import type { WorkspaceTransaction as Transaction } from '../types/common';
 import type {
-  recordStudentPaymentSchema,
-  studentPaymentHistoryQuerySchema,
-} from "../validation/student-payment.validation";
-import { recordAuditLog } from "./audit-log.service";
+  RecordStudentPaymentInput as RecordPaymentInput,
+  StudentPayment,
+  StudentPaymentQuery as PaymentQuery,
+} from '../types/student';
 
-type Transaction = Parameters<Parameters<typeof withWorkspaceContext>[1]>[0];
-type Payment = typeof studentPayments.$inferSelect;
-type RecordPaymentInput = z.infer<typeof recordStudentPaymentSchema>;
-type PaymentQuery = z.infer<typeof studentPaymentHistoryQuerySchema>;
-
-function mapPayment(row: Payment) {
+function mapPayment(row: StudentPayment) {
   return {
     id: row.id,
     studentId: row.studentId,
@@ -35,7 +31,7 @@ function mapPayment(row: Payment) {
 async function generateReceiptNumber(
   tx: Transaction,
   workspaceId: string,
-  dateStr?: string,
+  dateStr?: string
 ): Promise<string> {
   const [settings] = await tx
     .select({ prefix: workspaceSettings.receiptPrefix })
@@ -43,13 +39,11 @@ async function generateReceiptNumber(
     .where(eq(workspaceSettings.workspaceId, workspaceId));
 
   const prefix =
-    settings?.prefix && settings.prefix.trim()
-      ? settings.prefix.trim().toUpperCase()
-      : "RCP";
+    settings?.prefix && settings.prefix.trim() ? settings.prefix.trim().toUpperCase() : 'RCP';
 
   const targetDate = dateStr ? new Date(dateStr) : new Date();
   const year = targetDate.getFullYear();
-  const month = String(targetDate.getMonth() + 1).padStart(2, "0");
+  const month = String(targetDate.getMonth() + 1).padStart(2, '0');
   const ym = `${year}${month}`;
   const searchPrefix = `${prefix}-${ym}-%`;
 
@@ -62,7 +56,7 @@ async function generateReceiptNumber(
 
   const baseSeq = (countResult.rows[0]?.count ?? 0) + 1;
   let attempt = 0;
-  let receiptNumber = `${prefix}-${ym}-${String(baseSeq).padStart(4, "0")}`;
+  let receiptNumber = `${prefix}-${ym}-${String(baseSeq).padStart(4, '0')}`;
 
   while (true) {
     const [existing] = await tx
@@ -71,14 +65,14 @@ async function generateReceiptNumber(
       .where(
         and(
           eq(studentPayments.workspaceId, workspaceId),
-          eq(studentPayments.receiptNumber, receiptNumber),
-        ),
+          eq(studentPayments.receiptNumber, receiptNumber)
+        )
       )
       .limit(1);
 
     if (!existing) break;
     attempt++;
-    receiptNumber = `${prefix}-${ym}-${String(baseSeq + attempt).padStart(4, "0")}`;
+    receiptNumber = `${prefix}-${ym}-${String(baseSeq + attempt).padStart(4, '0')}`;
   }
 
   return receiptNumber;
@@ -88,7 +82,7 @@ export async function recordStudentPayment(
   workspaceId: string,
   actorUserId: string,
   feeId: string,
-  input: RecordPaymentInput,
+  input: RecordPaymentInput
 ) {
   return withWorkspaceContext(workspaceId, async (tx) => {
     // Lock the student_fee record for update
@@ -96,13 +90,12 @@ export async function recordStudentPayment(
       .select()
       .from(studentFees)
       .where(and(eq(studentFees.id, feeId), eq(studentFees.workspaceId, workspaceId)))
-      .for("update")
+      .for('update')
       .limit(1);
 
     if (!fee) {
-      throw new AppError("FEE_NOT_FOUND", "The fee record was not found.", 404);
+      throw new AppError('FEE_NOT_FOUND', 'The fee record was not found.', 404);
     }
-
 
     const [student] = await tx
       .select({ id: students.id, fullName: students.fullName, studentCode: students.studentCode })
@@ -111,7 +104,7 @@ export async function recordStudentPayment(
       .limit(1);
 
     if (!student) {
-      throw new AppError("STUDENT_NOT_FOUND", "The student was not found.", 404);
+      throw new AppError('STUDENT_NOT_FOUND', 'The student was not found.', 404);
     }
 
     // Evaluate exact financial balances in PostgreSQL
@@ -140,30 +133,26 @@ export async function recordStudentPayment(
 
     const calc = calcResult.rows[0];
     if (!calc) {
-      throw new AppError("FEE_NOT_FOUND", "The fee record was not found.", 404);
+      throw new AppError('FEE_NOT_FOUND', 'The fee record was not found.', 404);
     }
 
-    if (calc.isWaived || fee.status === "waived") {
+    if (calc.isWaived || fee.status === 'waived') {
       throw new AppError(
-        "FEE_ALREADY_WAIVED",
-        "This fee has been fully waived and requires no payment.",
-        409,
+        'FEE_ALREADY_WAIVED',
+        'This fee has been fully waived and requires no payment.',
+        409
       );
     }
 
-    if (calc.isFullyPaid || fee.status === "paid") {
-      throw new AppError(
-        "FEE_ALREADY_PAID",
-        "This fee is already fully paid.",
-        409,
-      );
+    if (calc.isFullyPaid || fee.status === 'paid') {
+      throw new AppError('FEE_ALREADY_PAID', 'This fee is already fully paid.', 409);
     }
 
     if (calc.isExcess) {
       throw new AppError(
-        "EXCESS_PAYMENT_NOT_ALLOWED",
+        'EXCESS_PAYMENT_NOT_ALLOWED',
         `Payment amount (${input.amount}) exceeds the remaining fee due balance of ৳${calc.currentDue}.`,
-        409,
+        409
       );
     }
 
@@ -177,23 +166,23 @@ export async function recordStudentPayment(
         .where(
           and(
             eq(studentPayments.workspaceId, workspaceId),
-            eq(studentPayments.receiptNumber, receiptNumber),
-          ),
+            eq(studentPayments.receiptNumber, receiptNumber)
+          )
         )
         .limit(1);
 
       if (existing) {
         throw new AppError(
-          "DUPLICATE_RECEIPT_NUMBER",
+          'DUPLICATE_RECEIPT_NUMBER',
           `A receipt with number "${receiptNumber}" already exists in this workspace.`,
-          409,
+          409
         );
       }
     } else {
       receiptNumber = await generateReceiptNumber(tx, workspaceId, input.paymentDate);
     }
 
-    const newStatus = calc.completesFee ? ("paid" as const) : ("partially_paid" as const);
+    const newStatus = calc.completesFee ? ('paid' as const) : ('partially_paid' as const);
 
     // Insert payment record
     const [payment] = await tx
@@ -225,8 +214,8 @@ export async function recordStudentPayment(
     await recordAuditLog(tx, {
       workspaceId,
       actorUserId,
-      action: "fees.payment_recorded",
-      entityType: "student_payments",
+      action: 'fees.payment_recorded',
+      entityType: 'student_payments',
       entityId: payment.id,
       metadata: {
         feeId: fee.id,
@@ -248,7 +237,7 @@ export async function recordStudentPayment(
         discountAmount: fee.discountAmount,
         paidAmount: calc.newPaid,
         dueAmount: calc.completesFee
-          ? "0.00"
+          ? '0.00'
           : (Number(calc.currentDue) - Number(input.amount)).toFixed(2),
         status: newStatus,
       },
@@ -270,19 +259,20 @@ export async function listFeePayments(workspaceId: string, feeId: string) {
       .limit(1);
 
     if (!fee) {
-      throw new AppError("FEE_NOT_FOUND", "The fee record was not found.", 404);
+      throw new AppError('FEE_NOT_FOUND', 'The fee record was not found.', 404);
     }
 
     const rows = await tx
       .select()
       .from(studentPayments)
       .where(
-        and(
-          eq(studentPayments.workspaceId, workspaceId),
-          eq(studentPayments.studentFeeId, feeId),
-        ),
+        and(eq(studentPayments.workspaceId, workspaceId), eq(studentPayments.studentFeeId, feeId))
       )
-      .orderBy(desc(studentPayments.paymentDate), desc(studentPayments.createdAt), desc(studentPayments.id));
+      .orderBy(
+        desc(studentPayments.paymentDate),
+        desc(studentPayments.createdAt),
+        desc(studentPayments.id)
+      );
 
     return {
       data: rows.map(mapPayment),
@@ -293,7 +283,7 @@ export async function listFeePayments(workspaceId: string, feeId: string) {
 export async function listStudentPaymentHistory(
   workspaceId: string,
   studentId: string,
-  query: PaymentQuery,
+  query: PaymentQuery
 ) {
   return withWorkspaceContext(workspaceId, async (tx) => {
     const [student] = await tx
@@ -303,7 +293,7 @@ export async function listStudentPaymentHistory(
       .limit(1);
 
     if (!student) {
-      throw new AppError("STUDENT_NOT_FOUND", "The student was not found.", 404);
+      throw new AppError('STUDENT_NOT_FOUND', 'The student was not found.', 404);
     }
 
     const where = and(
@@ -311,14 +301,18 @@ export async function listStudentPaymentHistory(
       eq(studentPayments.studentId, studentId),
       query.startDate ? gte(studentPayments.paymentDate, query.startDate) : undefined,
       query.endDate ? lte(studentPayments.paymentDate, query.endDate) : undefined,
-      query.paymentMethod ? eq(studentPayments.paymentMethod, query.paymentMethod) : undefined,
+      query.paymentMethod ? eq(studentPayments.paymentMethod, query.paymentMethod) : undefined
     );
 
     const rows = await tx
       .select()
       .from(studentPayments)
       .where(where)
-      .orderBy(desc(studentPayments.paymentDate), desc(studentPayments.createdAt), desc(studentPayments.id))
+      .orderBy(
+        desc(studentPayments.paymentDate),
+        desc(studentPayments.createdAt),
+        desc(studentPayments.id)
+      )
       .limit(query.limit)
       .offset((query.page - 1) * query.limit);
 
@@ -341,22 +335,19 @@ export async function getPaymentById(workspaceId: string, paymentId: string) {
     const [payment] = await tx
       .select()
       .from(studentPayments)
-      .where(
-        and(
-          eq(studentPayments.workspaceId, workspaceId),
-          eq(studentPayments.id, paymentId),
-        ),
-      )
+      .where(and(eq(studentPayments.workspaceId, workspaceId), eq(studentPayments.id, paymentId)))
       .limit(1);
 
     if (!payment) {
-      throw new AppError("PAYMENT_NOT_FOUND", "The payment record was not found.", 404);
+      throw new AppError('PAYMENT_NOT_FOUND', 'The payment record was not found.', 404);
     }
 
     const [fee] = await tx
       .select()
       .from(studentFees)
-      .where(and(eq(studentFees.id, payment.studentFeeId), eq(studentFees.workspaceId, workspaceId)))
+      .where(
+        and(eq(studentFees.id, payment.studentFeeId), eq(studentFees.workspaceId, workspaceId))
+      )
       .limit(1);
 
     const [student] = await tx
@@ -393,19 +384,21 @@ export async function getPaymentByReceiptNumber(workspaceId: string, receiptNumb
       .where(
         and(
           eq(studentPayments.workspaceId, workspaceId),
-          eq(studentPayments.receiptNumber, receiptNumber),
-        ),
+          eq(studentPayments.receiptNumber, receiptNumber)
+        )
       )
       .limit(1);
 
     if (!payment) {
-      throw new AppError("RECEIPT_NOT_FOUND", "The receipt was not found.", 404);
+      throw new AppError('RECEIPT_NOT_FOUND', 'The receipt was not found.', 404);
     }
 
     const [fee] = await tx
       .select()
       .from(studentFees)
-      .where(and(eq(studentFees.id, payment.studentFeeId), eq(studentFees.workspaceId, workspaceId)))
+      .where(
+        and(eq(studentFees.id, payment.studentFeeId), eq(studentFees.workspaceId, workspaceId))
+      )
       .limit(1);
 
     const [student] = await tx

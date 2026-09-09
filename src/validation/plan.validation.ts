@@ -1,8 +1,12 @@
-import { z } from "zod";
-import { bigintSchema, uuidSchema } from "./common.validation";
+import { z } from 'zod';
+import { bigintSchema, uuidSchema } from './common.validation';
 
 const featureSchema = z
-  .object({ featureKey: z.string().trim().min(1).max(100), enabled: z.boolean(), limitValue: bigintSchema.nullable() })
+  .object({
+    featureKey: z.string().trim().min(1).max(100),
+    enabled: z.boolean(),
+    limitValue: bigintSchema.nullable(),
+  })
   .strict();
 export const planSchema = z
   .object({
@@ -17,7 +21,7 @@ export const planSchema = z
     durationDays: z.number().int().nonnegative(),
     trialDays: z.number().int().nonnegative(),
     isActive: z.boolean().optional(),
-    features: z.array(featureSchema).max(100).optional()
+    features: z.array(featureSchema).max(100).optional(),
   })
   .strict();
 export const createPlanSchema = planSchema;

@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
-import type { NextFunction, Request, Response } from "express";
+import { randomUUID } from 'node:crypto';
+import type { NextFunction, Request, Response } from 'express';
 
 declare global {
   // Express exposes request extension through namespace merging.
@@ -12,8 +12,8 @@ declare global {
 }
 
 export function requestIdMiddleware(req: Request, res: Response, next: NextFunction) {
-  const incomingRequestId = req.header("x-request-id");
+  const incomingRequestId = req.header('x-request-id');
   req.requestId = incomingRequestId?.trim() || randomUUID();
-  res.setHeader("x-request-id", req.requestId);
+  res.setHeader('x-request-id', req.requestId);
   next();
 }

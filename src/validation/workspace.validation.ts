@@ -1,10 +1,10 @@
-import { z } from "zod";
-import { uuidSchema } from "./common.validation";
+import { z } from 'zod';
+import { uuidSchema } from './common.validation';
 import {
   workspaceListAccessStatuses,
   workspaceListSubscriptionStatuses,
-  workspaceListWorkspaceStatuses
-} from "../services/workspace-list.service";
+  workspaceListWorkspaceStatuses,
+} from '../services/workspace-list.service';
 
 export const workspaceListQuerySchema = z
   .object({
@@ -14,7 +14,10 @@ export const workspaceListQuerySchema = z
     workspaceStatus: z.enum(workspaceListWorkspaceStatuses).optional(),
     subscriptionStatus: z.enum(workspaceListSubscriptionStatuses).optional(),
     accessStatus: z.enum(workspaceListAccessStatuses).optional(),
-    lifecycleQueue: z.enum(["true", "false"]).transform((value) => value === "true").optional()
+    lifecycleQueue: z
+      .enum(['true', 'false'])
+      .transform((value) => value === 'true')
+      .optional(),
   })
   .strict();
 export const workspaceIdSchema = uuidSchema;
@@ -29,9 +32,12 @@ export const createWorkspaceOnboardingSchema = z
       .trim()
       .min(1)
       .max(100)
-      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must use lowercase letters, numbers, and hyphens."),
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        'Slug must use lowercase letters, numbers, and hyphens.'
+      ),
     phone: bangladeshiMobileNumberSchema.optional(),
     email: z.string().trim().email().max(255).optional(),
-    address: z.string().trim().min(1).max(2_000).optional()
+    address: z.string().trim().min(1).max(2_000).optional(),
   })
   .strict();

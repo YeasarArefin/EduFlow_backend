@@ -1,18 +1,18 @@
-import type { RequestHandler } from "express";
+import type { RequestHandler } from 'express';
 import {
   getPaymentById,
   getPaymentByReceiptNumber,
   listFeePayments,
   listStudentPaymentHistory,
   recordStudentPayment,
-} from "../services/student-payment.service";
+} from '../services/student-payment.service';
 import {
   feePaymentParamsSchema,
   receiptParamsSchema,
   recordStudentPaymentSchema,
   studentPaymentHistoryQuerySchema,
   studentPaymentParamsSchema,
-} from "../validation/student-payment.validation";
+} from '../validation/student-payment.validation';
 
 export const recordFeePaymentController: RequestHandler = async (req, res) => {
   const { id: feeId } = feePaymentParamsSchema.parse(req.params);
@@ -21,7 +21,7 @@ export const recordFeePaymentController: RequestHandler = async (req, res) => {
     req.workspaceContext!.workspaceId,
     req.authenticatedUser!.id,
     feeId,
-    input,
+    input
   );
   res.status(201).json({ data: result });
 };
@@ -38,7 +38,7 @@ export const listStudentPaymentsController: RequestHandler = async (req, res) =>
   const result = await listStudentPaymentHistory(
     req.workspaceContext!.workspaceId,
     studentId,
-    query,
+    query
   );
   res.json(result);
 };
@@ -51,9 +51,6 @@ export const getPaymentDetailController: RequestHandler = async (req, res) => {
 
 export const getReceiptDetailController: RequestHandler = async (req, res) => {
   const { receiptNumber } = receiptParamsSchema.parse(req.params);
-  const result = await getPaymentByReceiptNumber(
-    req.workspaceContext!.workspaceId,
-    receiptNumber,
-  );
+  const result = await getPaymentByReceiptNumber(req.workspaceContext!.workspaceId, receiptNumber);
   res.json(result);
 };

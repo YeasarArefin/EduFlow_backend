@@ -1,4 +1,4 @@
-import type { RequestHandler } from "express";
+import type { RequestHandler } from 'express';
 import {
   createWorkspaceRole,
   deleteWorkspaceRole,
@@ -6,19 +6,19 @@ import {
   getPermissionConfiguration,
   resetMemberPermissionOverrides,
   updateMemberPermissionOverrides,
-  updateWorkspaceRole
-} from "../services/permission-management.service";
+  updateWorkspaceRole,
+} from '../services/permission-management.service';
 import {
   createRoleSchema,
   permissionMemberIdSchema,
   permissionRoleIdSchema,
   updateMemberOverridesSchema,
-  updateRoleSchema
-} from "../validation/permission-management.validation";
+  updateRoleSchema,
+} from '../validation/permission-management.validation';
 
 const invalid = (res: Parameters<RequestHandler>[1]) =>
   res.status(400).json({
-    error: { code: "VALIDATION_ERROR", message: "Request validation failed." }
+    error: { code: 'VALIDATION_ERROR', message: 'Request validation failed.' },
   });
 
 export const getPermissionConfigurationController: RequestHandler = async (req, res, next) => {
@@ -33,7 +33,11 @@ export const createRoleController: RequestHandler = async (req, res, next) => {
   const input = createRoleSchema.safeParse(req.body);
   if (!input.success) return invalid(res);
   try {
-    const data = await createWorkspaceRole(req.workspaceContext!.workspaceId, req.authenticatedUser!.id, input.data);
+    const data = await createWorkspaceRole(
+      req.workspaceContext!.workspaceId,
+      req.authenticatedUser!.id,
+      input.data
+    );
     res.status(201).json({ data });
   } catch (error) {
     next(error);
@@ -61,7 +65,11 @@ export const deleteRoleController: RequestHandler = async (req, res, next) => {
   const roleId = permissionRoleIdSchema.safeParse(req.params.roleId);
   if (!roleId.success) return invalid(res);
   try {
-    await deleteWorkspaceRole(req.workspaceContext!.workspaceId, req.authenticatedUser!.id, roleId.data);
+    await deleteWorkspaceRole(
+      req.workspaceContext!.workspaceId,
+      req.authenticatedUser!.id,
+      roleId.data
+    );
     res.status(204).end();
   } catch (error) {
     next(error);
@@ -72,7 +80,9 @@ export const getMemberPermissionOverridesController: RequestHandler = async (req
   const memberId = permissionMemberIdSchema.safeParse(req.params.memberId);
   if (!memberId.success) return invalid(res);
   try {
-    res.json({ data: await getMemberPermissionOverrides(req.workspaceContext!.workspaceId, memberId.data) });
+    res.json({
+      data: await getMemberPermissionOverrides(req.workspaceContext!.workspaceId, memberId.data),
+    });
   } catch (error) {
     next(error);
   }

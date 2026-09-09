@@ -1,6 +1,6 @@
-import type { ErrorRequestHandler } from "express";
-import { ZodError } from "zod";
-import { logger } from "../lib/logger";
+import type { ErrorRequestHandler } from 'express';
+import { ZodError } from 'zod';
+import { logger } from '../lib/logger';
 
 export class AppError extends Error {
   constructor(
@@ -17,9 +17,9 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (err instanceof ZodError) {
     res.status(400).json({
       error: {
-        code: "VALIDATION_ERROR",
-        message: "Request validation failed."
-      }
+        code: 'VALIDATION_ERROR',
+        message: 'Request validation failed.',
+      },
     });
     return;
   }
@@ -28,18 +28,18 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     res.status(err.statusCode).json({
       error: {
         code: err.code,
-        message: err.message
-      }
+        message: err.message,
+      },
     });
     return;
   }
 
-  logger.error({ err, requestId: req.requestId }, "Unhandled request error");
+  logger.error({ err, requestId: req.requestId }, 'Unhandled request error');
 
   res.status(500).json({
     error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Something went wrong."
-    }
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Something went wrong.',
+    },
   });
 };

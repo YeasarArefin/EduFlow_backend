@@ -1,6 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-export const memberStatuses = ["active", "suspended", "removed"] as const;
+export const memberStatuses = ['active', 'suspended', 'removed'] as const;
 const roleId = z.string().uuid();
 
 export const memberIdSchema = z.string().uuid();
@@ -10,7 +10,7 @@ export const listMembersQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).default(20),
     search: z.string().trim().min(1).max(100).optional(),
     roleId: roleId.optional(),
-    status: z.enum(memberStatuses).optional()
+    status: z.enum(memberStatuses).optional(),
   })
   .strict();
 
@@ -19,9 +19,11 @@ export const createMemberSchema = z
     name: z.string().trim().min(1).max(100),
     email: z.string().trim().email().max(255),
     password: z.string().min(12).max(128),
-    roleId
+    roleId,
   })
   .strict();
 
 export const updateMemberRoleSchema = z.object({ roleId }).strict();
-export const updateMemberStatusSchema = z.object({ status: z.enum(["active", "suspended"]) }).strict();
+export const updateMemberStatusSchema = z
+  .object({ status: z.enum(['active', 'suspended']) })
+  .strict();
