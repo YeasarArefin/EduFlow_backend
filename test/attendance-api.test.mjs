@@ -217,6 +217,22 @@ describe('attendance sessions and records API', () => {
     expect(response.body.data.records).toEqual([]);
   });
 
+  it('allows a past class day and rejects non-class and future attendance dates', async () => {
+    const scheduledBatch = (
+      await pool.query(
+        "INSERT INTO batches (workspace_id, name, class_level_id, class_days) VALUES ($1, $2, $3, ARRAY[2]::smallint[]) RETURNING id",
+        [workspaceA, `Tuesday Attendance ${suffix}`, classA]
+      )
+    ).rows[0].id;
+    await createSession({ batchId: scheduledBatch, sessionDate: '2026-09-08' }).expect(201);
+    await createSession({ batchId: scheduledBatch, sessionDate: '2026-09-07' })
+      .expect(400)
+      .expect(({ body }) => expect(body.error.code).toBe('ATTENDANCE_DATE_NOT_CLASS_DAY'));
+    await createSession({ batchId: scheduledBatch, sessionDate: '2026-09-10' })
+      .expect(400)
+      .expect(({ body }) => expect(body.error.code).toBe('ATTENDANCE_DATE_IN_FUTURE'));
+  });
+
   it('rejects duplicate batch/date sessions and wrong or inactive batches', async () => {
     await createSession({ batchId: batchA, sessionDate: '2026-09-02' }).expect(201);
     await createSession({ batchId: batchA, sessionDate: '2026-09-02' })

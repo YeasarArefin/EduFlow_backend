@@ -1,0 +1,1 @@
+ALTER TABLE "batches" ADD COLUMN "class_days" smallint[] DEFAULT ARRAY[0, 1, 2, 3, 4, 5, 6]::smallint[] NOT NULL;

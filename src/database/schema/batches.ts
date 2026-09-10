@@ -6,6 +6,7 @@ import {
   date,
   index,
   integer,
+  smallint,
   pgEnum,
   pgTable,
   text,
@@ -45,6 +46,7 @@ export const batches = pgTable(
       .notNull()
       .default(sql`0`),
     status: batchStatus('status').notNull().default('active'),
+    classDays: smallint('class_days').array().notNull().default(sql`ARRAY[0, 1, 2, 3, 4, 5, 6]::smallint[]`),
     startDate: date('start_date'),
     endDate: date('end_date'),
     maxCapacity: integer('max_capacity'),

@@ -16,6 +16,7 @@ function mapBatch(batch: typeof batches.$inferSelect) {
     mediumId: batch.mediumId,
     academicGroupId: batch.academicGroupId,
     startDate: batch.startDate,
+    classDays: batch.classDays,
     monthlyFeeMinor: batch.monthlyFeeMinor.toString(),
     monthlyFee,
     status: batch.status,
@@ -108,6 +109,7 @@ export async function createBatch(
           startDate: input.startDate ?? null,
           monthlyFeeMinor: input.monthlyFeeMinor,
           status: input.status,
+          classDays: input.classDays,
         })
         .returning({ id: batches.id });
       await recordAuditLog(transaction, {

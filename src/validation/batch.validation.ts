@@ -3,6 +3,9 @@ import { z } from 'zod';
 const batchStatusSchema = z.enum(['active', 'inactive', 'archived']);
 const nullableAcademicId = z.string().uuid().nullable().optional();
 const nullableDate = z.iso.date().nullable().optional();
+const classDaysSchema = z.array(z.number().int().min(0).max(6)).min(1).max(7).superRefine((days, ctx) => {
+  if (new Set(days).size !== days.length) ctx.addIssue({ code: 'custom', message: 'Class days must be unique.' });
+});
 
 export function takaToMinor(val: number | string | bigint): bigint {
   if (typeof val === 'bigint') return val;
@@ -29,6 +32,7 @@ export const createBatchSchema = z
     monthlyFee: feeTakaSchema.optional(),
     monthlyFeeMinor: z.coerce.bigint().min(0n).optional(),
     status: batchStatusSchema.optional(),
+    classDays: classDaysSchema,
   })
   .strict()
   .refine((data) => data.monthlyFee !== undefined || data.monthlyFeeMinor !== undefined, {
@@ -44,6 +48,7 @@ export const createBatchSchema = z
     monthlyFeeMinor:
       data.monthlyFee !== undefined ? takaToMinor(data.monthlyFee) : data.monthlyFeeMinor!,
     status: data.status,
+    classDays: data.classDays,
   }));
 
 export const updateBatchSchema = z
@@ -56,6 +61,7 @@ export const updateBatchSchema = z
     monthlyFee: feeTakaSchema.optional(),
     monthlyFeeMinor: z.coerce.bigint().min(0n).optional(),
     status: z.enum(['active', 'inactive']).optional(),
+    classDays: classDaysSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -70,6 +76,7 @@ export const updateBatchSchema = z
       startDate?: string | null;
       monthlyFeeMinor?: bigint;
       status?: 'active' | 'inactive';
+      classDays?: number[];
     } = {};
 
     if (data.name !== undefined) result.name = data.name;
@@ -78,6 +85,7 @@ export const updateBatchSchema = z
     if (data.academicGroupId !== undefined) result.academicGroupId = data.academicGroupId;
     if (data.startDate !== undefined) result.startDate = data.startDate;
     if (data.status !== undefined) result.status = data.status;
+    if (data.classDays !== undefined) result.classDays = data.classDays;
 
     if (data.monthlyFee !== undefined) {
       result.monthlyFeeMinor = takaToMinor(data.monthlyFee);

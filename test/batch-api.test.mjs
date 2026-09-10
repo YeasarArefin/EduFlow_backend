@@ -34,6 +34,7 @@ const batch = (overrides = {}) => ({
   mediumId: mediumA,
   academicGroupId: academicGroupA,
   startDate: '2026-10-01',
+  classDays: [0, 2, 4],
   monthlyFeeMinor: '125000',
   status: 'active',
   ...overrides,
@@ -173,6 +174,7 @@ describe('batch API', () => {
     expect(response.body.data).toMatchObject({
       name: batch().name,
       startDate: '2026-10-01',
+      classDays: [0, 2, 4],
       monthlyFeeMinor: '125000',
       monthlyFee: '1250',
       classLevel: { name: 'Class 10' },
@@ -182,9 +184,9 @@ describe('batch API', () => {
     const updated = await request(app)
       .patch(`/api/v1/batches/${response.body.data.id}`)
       .set(headers())
-      .send({ startDate: '2026-10-15', mediumId: null })
+      .send({ startDate: '2026-10-15', mediumId: null, classDays: [1, 3, 5] })
       .expect(200);
-    expect(updated.body.data).toMatchObject({ startDate: '2026-10-15', medium: null });
+    expect(updated.body.data).toMatchObject({ startDate: '2026-10-15', classDays: [1, 3, 5], medium: null });
     await request(app)
       .patch(`/api/v1/batches/${response.body.data.id}`)
       .set(headers())
@@ -198,11 +200,13 @@ describe('batch API', () => {
       .send({
         name: `Taka Fee Batch ${suffix}`,
         classLevelId: classLevelA,
+        classDays: [1, 3, 5],
         monthlyFee: 2000,
       })
       .expect(201);
     expect(response.body.data).toMatchObject({
       name: `Taka Fee Batch ${suffix}`,
+      classDays: [1, 3, 5],
       monthlyFeeMinor: '200000',
       monthlyFee: '2000',
     });

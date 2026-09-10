@@ -11,6 +11,14 @@ function attendanceSessionNotFound(): never {
   throw new AppError('ATTENDANCE_SESSION_NOT_FOUND', 'The attendance session was not found.', 404);
 }
 
+function bangladeshToday() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
+}
+
+function weekdayForIsoDate(value: string) {
+  return new Date(`${value}T00:00:00Z`).getUTCDay();
+}
+
 function mapSession(
   row: typeof attendanceSessions.$inferSelect,
   batch: { id: string; name: string }
@@ -83,7 +91,7 @@ export async function createAttendanceSession(
   try {
     const sessionId = await withWorkspaceContext(workspaceId, async (transaction) => {
       const [batch] = await transaction
-        .select({ id: batches.id, status: batches.status })
+        .select({ id: batches.id, status: batches.status, classDays: batches.classDays })
         .from(batches)
         .where(and(eq(batches.id, input.batchId), eq(batches.workspaceId, workspaceId)))
         .limit(1);
@@ -93,6 +101,14 @@ export async function createAttendanceSession(
           'BATCH_NOT_ACTIVE',
           'Attendance can only be created for an active batch.',
           409
+        );
+      if (input.sessionDate > bangladeshToday())
+        throw new AppError('ATTENDANCE_DATE_IN_FUTURE', 'Attendance cannot be created for a future date.', 400);
+      if (!batch.classDays.includes(weekdayForIsoDate(input.sessionDate)))
+        throw new AppError(
+          'ATTENDANCE_DATE_NOT_CLASS_DAY',
+          'Attendance can only be created on one of this batch’s class days.',
+          400
         );
       const [session] = await transaction
         .insert(attendanceSessions)
