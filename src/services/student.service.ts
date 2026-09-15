@@ -10,6 +10,7 @@ function mapStudent(student: typeof students.$inferSelect) {
     id: student.id,
     studentCode: student.studentCode,
     fullName: student.fullName,
+    email: student.email,
     phone: student.phone,
     guardianName: student.guardianName,
     guardianPhone: student.guardianPhone,
@@ -91,6 +92,7 @@ export async function listStudents(workspaceId: string, input: ListStudentsInput
         or(
           ilike(students.fullName, term),
           ilike(students.studentCode, term),
+          ilike(students.email, term),
           ilike(students.phone, term),
           ilike(students.guardianName, term),
           ilike(students.guardianPhone, term)

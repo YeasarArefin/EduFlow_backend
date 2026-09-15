@@ -17,6 +17,8 @@ import { teacherSalaryRoutes } from './teacher-salary.routes';
 import { memberRoutes } from './member.routes';
 import { permissionManagementRoutes } from './permission-management.routes';
 import { workspaceSettingsRoutes } from './workspace-settings.routes';
+import { sessionManagementRoutes } from './session-management.routes';
+import { noticeRoutes } from './notice.routes';
 
 export const v1Router = Router();
 
@@ -38,3 +40,5 @@ v1Router.use('/teacher-salaries', teacherSalaryRoutes);
 v1Router.use('/members', memberRoutes);
 v1Router.use('/permission-management', permissionManagementRoutes);
 v1Router.use('/workspace-settings', workspaceSettingsRoutes);
+v1Router.use('/sessions', sessionManagementRoutes);
+v1Router.use('/notices', noticeRoutes);

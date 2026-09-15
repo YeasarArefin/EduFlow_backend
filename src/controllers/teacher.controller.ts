@@ -1,4 +1,6 @@
 import type { RequestHandler } from 'express';
+import { csvTemplate, importCsv, previewCsvImport } from '../services/csv-import.service';
+import { csvImportSchema } from '../validation/csv-import.validation';
 import {
   archiveTeacher,
   createTeacher,
@@ -64,3 +66,6 @@ export const archiveTeacherController: RequestHandler = async (req, res, next) =
     next(error);
   }
 };
+export const teacherImportTemplateController: RequestHandler = (_req, res) => res.type('text/csv').send(csvTemplate('teachers'));
+export const previewTeacherImportController: RequestHandler = async (req, res, next) => { const input = csvImportSchema.safeParse(req.body); if (!input.success) return invalid(res); try { res.json({ data: await previewCsvImport(req.workspaceContext!.workspaceId, 'teachers', input.data.csv) }); } catch (error) { next(error); } };
+export const importTeachersController: RequestHandler = async (req, res, next) => { const input = csvImportSchema.safeParse(req.body); if (!input.success) return invalid(res); try { res.status(201).json({ data: await importCsv(req.workspaceContext!.workspaceId, req.authenticatedUser!.id, 'teachers', input.data.csv) }); } catch (error) { next(error); } };

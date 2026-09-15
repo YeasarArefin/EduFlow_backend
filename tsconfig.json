@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
+    "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -13,6 +14,6 @@
     "types": ["node", "vitest"],
     "baseUrl": "."
   },
-  "include": ["src/**/*.ts", "drizzle.config.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "drizzle.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

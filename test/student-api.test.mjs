@@ -30,6 +30,7 @@ const headers = (workspaceId = workspaceA) => ({
 const student = (overrides = {}) => ({
   studentCode: `STD-${suffix}-${randomUUID().slice(0, 6)}`,
   fullName: 'Amina Rahman',
+  email: 'amina.rahman@example.test',
   phone: '01712345678',
   guardianName: 'Karim Rahman',
   guardianPhone: '01812345678',
@@ -128,6 +129,7 @@ describe('student API', () => {
     expect(created.body.data).toMatchObject({
       studentCode: 'SHARED-CODE',
       fullName: 'Amina Rahman',
+      email: 'amina.rahman@example.test',
       status: 'active',
     });
 
@@ -187,7 +189,12 @@ describe('student API', () => {
     await request(app)
       .post('/api/v1/students')
       .set(headers())
-      .send({ studentCode: 'BAD', fullName: 'Bad Phone', phone: '123' })
+      .send(student({ studentCode: 'MISSING-REQUIRED', email: undefined }))
+      .expect(400);
+    await request(app)
+      .post('/api/v1/students')
+      .set(headers())
+      .send(student({ studentCode: 'BAD', phone: '123' }))
       .expect(400);
   });
 

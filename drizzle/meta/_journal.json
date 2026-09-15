@@ -211,6 +211,34 @@
       "when": 1788971799126,
       "tag": "0029_free_shard",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789100000000,
+      "tag": "0030_session_management",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789179342991,
+      "tag": "0031_fuzzy_luckman",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789184595193,
+      "tag": "0032_aromatic_piledriver",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789254482853,
+      "tag": "0033_known_stranger",
+      "breakpoints": true
     }
   ]
 }

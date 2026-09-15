@@ -9,6 +9,9 @@ import {
   listStudentEnrollmentsController,
   listStudentsController,
   updateStudentController,
+  studentImportTemplateController,
+  previewStudentImportController,
+  importStudentsController,
 } from '../../controllers/student.controller';
 import { requireAuth } from '../../middleware/require-auth';
 import { requirePermission } from '../../middleware/require-permission';
@@ -19,6 +22,9 @@ export const studentRoutes = Router();
 studentRoutes.use(requireAuth, requireWorkspaceContext, requireWorkspaceSubscriptionAccess);
 studentRoutes.get('/', requirePermission('students.view'), listStudentsController);
 studentRoutes.post('/', requirePermission('students.create'), createStudentController);
+studentRoutes.get('/import/template', requirePermission('students.create'), studentImportTemplateController);
+studentRoutes.post('/import/preview', requirePermission('students.create'), previewStudentImportController);
+studentRoutes.post('/import', requirePermission('students.create'), importStudentsController);
 studentRoutes.get(
   '/:id/enrollments',
   requirePermission('students.view'),

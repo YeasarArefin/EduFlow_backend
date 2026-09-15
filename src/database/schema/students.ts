@@ -13,7 +13,7 @@ import { workspaces } from './workspaces';
 import { academicGroups, classLevels, mediums, studentTags } from './academics';
 
 export const studentStatus = pgEnum('student_status', ['active', 'inactive', 'archived']);
-export const studentGender = pgEnum('student_gender', ['male', 'female', 'other']);
+export const studentGender = pgEnum('student_gender', ['male', 'female']);
 
 export const students = pgTable(
   'students',
@@ -24,6 +24,7 @@ export const students = pgTable(
       .references(() => workspaces.id),
     studentCode: varchar('student_code', { length: 30 }).notNull(),
     fullName: varchar('full_name', { length: 150 }).notNull(),
+    email: varchar('email', { length: 255 }),
     phone: varchar('phone', { length: 30 }),
     institution: varchar('institution', { length: 200 }),
     classLevelId: uuid('class_level_id').references(() => classLevels.id),

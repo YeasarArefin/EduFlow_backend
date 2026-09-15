@@ -5,6 +5,85 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/notices:
+    get:
+      summary: List workspace notices
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      responses: { "200": { description: Paginated notices } }
+    post:
+      summary: Create a notice
+      description: Workspace Owner only. Persists a tenant-scoped notice before recipients are queued.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      responses: { "201": { description: Notice created }, "400": { $ref: "#/components/responses/ValidationError" }, "403": { description: Workspace Owner and subscription access required } }
+  /api/v1/notices/{id}/preview:
+    get:
+      summary: Preview server-resolved recipients
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Recipient count }, "404": { description: NOTICE_NOT_FOUND or BATCH_NOT_FOUND } }
+  /api/v1/notices/{id}/queue:
+    post:
+      summary: Persist recipients idempotently
+      description: Resolves the selected audience on the backend and does not reinsert existing notice-recipient rows.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Status summary } }
+  /api/v1/notices/{id}/process-next-batch:
+    post:
+      summary: Deliver the next 25 to 50 queued recipients
+      description: Atomically claims queued recipients with SKIP LOCKED, renders each notice, sends through Brevo, then records sent, failed, or skipped status. Sent recipients are never claimed again; only transient failures can be retried up to the configured cap.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Delivery result including claimed, sent, failed, skipped counts and claimed recipient IDs }, "400": { $ref: "#/components/responses/ValidationError" } }
+  /api/v1/notices/{id}/retry-failed:
+    post:
+      summary: Requeue failed recipients
+      description: Requeues only transient delivery failures that have not reached the retry cap.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Retry count } }
+  /api/v1/notices/{id}/progress:
+    get:
+      summary: Get recipient status summary
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Queued, processing, sent, failed, and skipped counts } }
+  /api/v1/notices/{id}:
+    get:
+      summary: Get notice detail and delivery progress
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Notice detail } }
+  /api/v1/notices/{id}/recipients:
+    get:
+      summary: List failed or skipped recipients
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { "200": { description: Recipient delivery diagnostics } }
+  /api/v1/sessions:
+    get:
+      summary: List the current user's active sessions
+      operationId: listActiveSessions
+      description: Returns non-expired Better Auth sessions for the authenticated user, including device metadata and whether each is the current session.
+      security: [{ betterAuth: [] }]
+      responses: { "200": { description: Active sessions }, "401": { $ref: "#/components/responses/Unauthenticated" } }
+  /api/v1/sessions/{sessionId}:
+    delete:
+      summary: Revoke one active session
+      operationId: revokeActiveSession
+      description: Revokes only a session belonging to the authenticated user. The revoked browser loses access on its next authenticated request.
+      security: [{ betterAuth: [] }]
+      parameters: [{ name: sessionId, in: path, required: true, schema: { type: string } }]
+      responses: { "204": { description: Session revoked }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" } }
+  /api/v1/sessions/other:
+    delete:
+      summary: Revoke all other active sessions
+      operationId: revokeOtherActiveSessions
+      description: Retains the current session and revokes every other Better Auth session owned by the authenticated user.
+      security: [{ betterAuth: [] }]
+      responses: { "204": { description: Other sessions revoked }, "401": { $ref: "#/components/responses/Unauthenticated" } }
   /api/v1/permission-management:
     get:
       summary: Get workspace role permission configuration
@@ -1794,16 +1873,17 @@ components:
     CreateStudent:
       type: object
       additionalProperties: false
-      required: [studentCode, fullName]
+      required: [studentCode, fullName, email, phone, guardianPhone, gender, admissionDate]
       properties:
         studentCode: { type: string, minLength: 1, maxLength: 30 }
         fullName: { type: string, minLength: 1, maxLength: 150 }
-        phone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        email: { type: string, format: email, maxLength: 255 }
+        phone: { type: string, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
         guardianName: { type: string, nullable: true, maxLength: 150 }
-        guardianPhone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        guardianPhone: { type: string, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
         address: { type: string, nullable: true, maxLength: 2000 }
-        gender: { type: string, nullable: true, enum: [male, female, other] }
-        admissionDate: { type: string, nullable: true, format: date }
+        gender: { type: string, enum: [male, female] }
+        admissionDate: { type: string, format: date }
         status: { type: string, enum: [active, inactive, archived] }
         notes: { type: string, nullable: true, maxLength: 5000 }
     UpdateStudent:
@@ -1813,12 +1893,13 @@ components:
       properties:
         studentCode: { type: string, minLength: 1, maxLength: 30 }
         fullName: { type: string, minLength: 1, maxLength: 150 }
-        phone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        email: { type: string, format: email, maxLength: 255 }
+        phone: { type: string, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
         guardianName: { type: string, nullable: true, maxLength: 150 }
-        guardianPhone: { type: string, nullable: true, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
+        guardianPhone: { type: string, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
         address: { type: string, nullable: true, maxLength: 2000 }
-        gender: { type: string, nullable: true, enum: [male, female, other] }
-        admissionDate: { type: string, nullable: true, format: date }
+        gender: { type: string, enum: [male, female] }
+        admissionDate: { type: string, format: date }
         status: { type: string, enum: [active, inactive, archived] }
         notes: { type: string, nullable: true, maxLength: 5000 }
     Student:

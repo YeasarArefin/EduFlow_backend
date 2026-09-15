@@ -1,23 +1,22 @@
 import { z } from 'zod';
 
 const bangladeshPhone = /^(?:\+8801\d{9}|01\d{9})$/;
-const optionalPhone = z
+const requiredPhone = z
   .string()
   .trim()
-  .regex(bangladeshPhone, 'Enter a valid Bangladeshi mobile number.')
-  .optional()
-  .nullable();
+  .regex(bangladeshPhone, 'Enter a valid Bangladeshi mobile number.');
 const optionalText = (max: number) => z.string().trim().max(max).optional().nullable();
 
 const studentFields = {
   studentCode: z.string().trim().min(1).max(30),
   fullName: z.string().trim().min(1).max(150),
-  phone: optionalPhone,
+  email: z.string().trim().email('Enter a valid email address.').max(255),
+  phone: requiredPhone,
   guardianName: optionalText(150),
-  guardianPhone: optionalPhone,
+  guardianPhone: requiredPhone,
   address: optionalText(2_000),
-  gender: z.enum(['male', 'female', 'other']).optional().nullable(),
-  admissionDate: z.string().date().optional().nullable(),
+  gender: z.enum(['male', 'female']),
+  admissionDate: z.string().date(),
   status: z.enum(['active', 'inactive', 'archived']).optional(),
   notes: optionalText(5_000),
 };

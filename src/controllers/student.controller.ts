@@ -1,5 +1,7 @@
 import type { RequestHandler } from 'express';
 import { listStudentEnrollments } from '../services/batch-enrollment.service';
+import { csvTemplate, importCsv, previewCsvImport } from '../services/csv-import.service';
+import { csvImportSchema } from '../validation/csv-import.validation';
 import {
   archiveStudent,
   createStudent,
@@ -92,3 +94,6 @@ export const archiveStudentController: RequestHandler = async (req, res, next) =
     next(error);
   }
 };
+export const studentImportTemplateController: RequestHandler = (_req, res) => res.type('text/csv').send(csvTemplate('students'));
+export const previewStudentImportController: RequestHandler = async (req, res, next) => { const input = csvImportSchema.safeParse(req.body); if (!input.success) return validationError(res); try { res.json({ data: await previewCsvImport(req.workspaceContext!.workspaceId, 'students', input.data.csv) }); } catch (error) { next(error); } };
+export const importStudentsController: RequestHandler = async (req, res, next) => { const input = csvImportSchema.safeParse(req.body); if (!input.success) return validationError(res); try { res.status(201).json({ data: await importCsv(req.workspaceContext!.workspaceId, req.authenticatedUser!.id, 'students', input.data.csv) }); } catch (error) { next(error); } };
