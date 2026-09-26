@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../database/client';
-import { features, planFeatures, plans } from '../database/schema/subscriptions';
+import { features, paymentRequests, planFeatures, plans, subscriptions } from '../database/schema/subscriptions';
 import { AppError } from '../middleware/error-handler';
 import { recordAuditLog } from './audit-log.service';
 import type { DatabaseTransaction as DbTransaction } from '../types/common';
@@ -239,4 +239,62 @@ export async function setPlanActive(id: string, isActive: boolean, actorUserId: 
   const features = await db.select().from(planFeatures).where(eq(planFeatures.planId, id));
 
   return mapPlan(plan, features);
+}
+
+export async function deletePlan(id: string, actorUserId: string) {
+  return await db.transaction(async (transaction) => {
+    const [existingPlan] = await transaction
+      .select()
+      .from(plans)
+      .where(eq(plans.id, id))
+      .limit(1);
+
+    if (!existingPlan) {
+      throw new AppError('PLAN_NOT_FOUND', 'The plan was not found.', 404);
+    }
+
+    // Check if any subscriptions reference this plan
+    const [subscriptionUsage] = await transaction
+      .select({ count: sql<number>`count(*)::int` })
+      .from(subscriptions)
+      .where(eq(subscriptions.planId, id));
+
+    if (subscriptionUsage && Number(subscriptionUsage.count) > 0) {
+      throw new AppError(
+        'PLAN_IN_USE',
+        'Cannot delete a plan that is associated with existing subscriptions. Deactivate it instead.',
+        409
+      );
+    }
+
+    // Check if any payment requests reference this plan
+    const [paymentUsage] = await transaction
+      .select({ count: sql<number>`count(*)::int` })
+      .from(paymentRequests)
+      .where(eq(paymentRequests.planId, id));
+
+    if (paymentUsage && Number(paymentUsage.count) > 0) {
+      throw new AppError(
+        'PLAN_IN_USE',
+        'Cannot delete a plan that is referenced by payment records. Deactivate it instead.',
+        409
+      );
+    }
+
+    // Delete associated plan features
+    await transaction.delete(planFeatures).where(eq(planFeatures.planId, id));
+
+    // Delete the plan
+    await transaction.delete(plans).where(eq(plans.id, id));
+
+    await recordAuditLog(transaction, {
+      actorUserId,
+      action: 'plan.deleted',
+      entityType: 'plan',
+      entityId: id,
+      metadata: { planName: existingPlan.name, slug: existingPlan.slug },
+    });
+
+    return { id, name: existingPlan.name, slug: existingPlan.slug };
+  });
 }

@@ -1,0 +1,6 @@
+ALTER TABLE "sms_recharge_requests" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "sms_messages" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "sms_recipients" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE POLICY "sms_recharge_requests_workspace_isolation" ON "sms_recharge_requests" AS PERMISSIVE FOR ALL TO "eduflow_app" USING ("sms_recharge_requests"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)) WITH CHECK ("sms_recharge_requests"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid));--> statement-breakpoint
+CREATE POLICY "sms_messages_workspace_isolation" ON "sms_messages" AS PERMISSIVE FOR ALL TO "eduflow_app" USING ("sms_messages"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)) WITH CHECK ("sms_messages"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid));--> statement-breakpoint
+CREATE POLICY "sms_recipients_workspace_isolation" ON "sms_recipients" AS PERMISSIVE FOR ALL TO "eduflow_app" USING ("sms_recipients"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)) WITH CHECK ("sms_recipients"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid));

@@ -27,6 +27,10 @@ export async function seedDevelopmentPlatformOwner(
   const now = new Date();
 
   await db.transaction(async (transaction) => {
+    await transaction
+      .update(user)
+      .set({ emailVerified: true })
+      .where(eq(user.id, userId));
     await transaction.delete(session).where(eq(session.userId, userId));
     await transaction
       .delete(account)

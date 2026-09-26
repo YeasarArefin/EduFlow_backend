@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../database/client';
 import { paymentRequests, plans, subscriptions } from '../database/schema/subscriptions';
 import { workspaces } from '../database/schema/workspaces';
@@ -93,7 +93,22 @@ export async function createSubscriptionPaymentRequest(
   }
 }
 
-export async function listPendingPaymentRequests() {
+export async function listPendingPaymentRequests(search?: string) {
+  const filters = [eq(paymentRequests.status, 'pending')];
+  if (search) {
+    const pattern = `%${search}%`;
+    filters.push(
+      or(
+        ilike(workspaces.name, pattern),
+        ilike(workspaces.slug, pattern),
+        ilike(plans.name, pattern),
+        ilike(plans.slug, pattern),
+        ilike(paymentRequests.senderBkashNumber, pattern),
+        ilike(paymentRequests.transactionId, pattern),
+        ilike(paymentRequests.requestedByUserId, pattern)
+      )!
+    );
+  }
   return db
     .select({
       id: paymentRequests.id,
@@ -111,7 +126,7 @@ export async function listPendingPaymentRequests() {
     .from(paymentRequests)
     .leftJoin(workspaces, eq(workspaces.id, paymentRequests.workspaceId))
     .leftJoin(plans, eq(plans.id, paymentRequests.planId))
-    .where(eq(paymentRequests.status, 'pending'))
+    .where(and(...filters))
     .orderBy(desc(paymentRequests.createdAt));
 }
 

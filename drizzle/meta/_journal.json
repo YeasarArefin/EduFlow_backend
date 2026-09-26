@@ -239,6 +239,111 @@
       "when": 1789254482853,
       "tag": "0033_known_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790248442849,
+      "tag": "0034_tiny_black_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790248600000,
+      "tag": "0035_expense_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790386555428,
+      "tag": "0036_smiling_wild_child",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790386577044,
+      "tag": "0037_low_network",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790387055502,
+      "tag": "0038_sms_ledger_maintenance",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790387164346,
+      "tag": "0039_sms_ledger_privileges",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790387349326,
+      "tag": "0040_volatile_bloodstorm",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790388251546,
+      "tag": "0041_cheerful_skreet",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790388845543,
+      "tag": "0042_skinny_sabretooth",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790388893374,
+      "tag": "0043_sms_tenant_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1790420008353,
+      "tag": "0044_daily_slapstick",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1790420064537,
+      "tag": "0045_sms_template_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1790421178375,
+      "tag": "0046_sharp_inertia",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790421583624,
+      "tag": "0047_handy_triton",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790422858518,
+      "tag": "0048_colorful_warhawk",
+      "breakpoints": true
     }
   ]
 }

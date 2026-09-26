@@ -1,0 +1,2 @@
+ALTER TABLE "sms_templates" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE POLICY "sms_templates_workspace_isolation" ON "sms_templates" AS PERMISSIVE FOR ALL TO "eduflow_app" USING ("sms_templates"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid)) WITH CHECK ("sms_templates"."workspace_id" = (select nullif(current_setting('app.workspace_id', true), '')::uuid));

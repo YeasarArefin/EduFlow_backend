@@ -17,6 +17,9 @@ export const paymentRequestIdSchema = uuidSchema;
 export const rejectionBodySchema = z
   .object({ rejectionReason: z.string().trim().min(1).max(500) })
   .strict();
+export const pendingPaymentQuerySchema = z
+  .object({ search: z.string().trim().min(1).max(100).optional() })
+  .strict();
 export const revenueOverviewQuerySchema = z
   .object({ from: z.string().date().optional(), to: z.string().date().optional() })
   .strict()

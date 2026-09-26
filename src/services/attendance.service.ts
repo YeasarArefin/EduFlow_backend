@@ -5,7 +5,13 @@ import { batchEnrollments, batches } from '../database/schema/batches';
 import { students } from '../database/schema/students';
 import { AppError } from '../middleware/error-handler';
 import { recordAuditLog } from './audit-log.service';
-import type { BulkSaveAttendanceInput, CreateAttendanceSessionInput, ListAttendanceSessionsInput, WorkspaceTransaction as Transaction } from '../types/common';
+import { notifyAbsenceFinalization } from './notification-channel.service';
+import type {
+  BulkSaveAttendanceInput,
+  CreateAttendanceSessionInput,
+  ListAttendanceSessionsInput,
+  WorkspaceTransaction as Transaction,
+} from '../types/common';
 
 function attendanceSessionNotFound(): never {
   throw new AppError('ATTENDANCE_SESSION_NOT_FOUND', 'The attendance session was not found.', 404);
@@ -103,7 +109,11 @@ export async function createAttendanceSession(
           409
         );
       if (input.sessionDate > bangladeshToday())
-        throw new AppError('ATTENDANCE_DATE_IN_FUTURE', 'Attendance cannot be created for a future date.', 400);
+        throw new AppError(
+          'ATTENDANCE_DATE_IN_FUTURE',
+          'Attendance cannot be created for a future date.',
+          400
+        );
       if (!batch.classDays.includes(weekdayForIsoDate(input.sessionDate)))
         throw new AppError(
           'ATTENDANCE_DATE_NOT_CLASS_DAY',
@@ -132,16 +142,14 @@ export async function createAttendanceSession(
           )
         );
       if (roster.length)
-        await transaction
-          .insert(attendanceRecords)
-          .values(
-            roster.map(({ studentId }) => ({
-              workspaceId,
-              attendanceSessionId: session.id,
-              studentId,
-              status: 'absent' as const,
-            }))
-          );
+        await transaction.insert(attendanceRecords).values(
+          roster.map(({ studentId }) => ({
+            workspaceId,
+            attendanceSessionId: session.id,
+            studentId,
+            status: 'absent' as const,
+          }))
+        );
       await recordAuditLog(transaction, {
         actorUserId,
         workspaceId,
@@ -258,6 +266,7 @@ export async function saveAttendance(
       metadata: { recordCount: input.records.length },
     });
   });
+  void notifyAbsenceFinalization(workspaceId, sessionId).catch(() => undefined);
   return getAttendanceSession(workspaceId, sessionId);
 }
 

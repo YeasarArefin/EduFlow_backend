@@ -19,6 +19,12 @@ import { permissionManagementRoutes } from './permission-management.routes';
 import { workspaceSettingsRoutes } from './workspace-settings.routes';
 import { sessionManagementRoutes } from './session-management.routes';
 import { noticeRoutes } from './notice.routes';
+import { expenseRoutes } from './expense.routes';
+import { smsWalletRoutes } from './sms-wallet.routes';
+import { smsRechargeRoutes } from './sms-recharge.routes';
+import { smsRoutes } from './sms.routes';
+import { smsTemplateRoutes } from './sms-template.routes';
+import { feeReminderRoutes } from './fee-reminder.routes';
 
 export const v1Router = Router();
 
@@ -42,3 +48,9 @@ v1Router.use('/permission-management', permissionManagementRoutes);
 v1Router.use('/workspace-settings', workspaceSettingsRoutes);
 v1Router.use('/sessions', sessionManagementRoutes);
 v1Router.use('/notices', noticeRoutes);
+v1Router.use('/expenses', expenseRoutes);
+v1Router.use('/sms-wallet', smsWalletRoutes);
+v1Router.use('/sms', smsRechargeRoutes);
+v1Router.use('/sms', smsRoutes);
+v1Router.use('/sms', smsTemplateRoutes);
+v1Router.use('/fee-reminders', feeReminderRoutes);

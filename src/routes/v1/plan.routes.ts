@@ -3,6 +3,7 @@ import {
   activatePlatformPlan,
   createPlatformPlan,
   deactivatePlatformPlan,
+  deletePlatformPlan,
   listPlatformFeatures,
   listPlatformPlans,
   updatePlatformPlan,
@@ -16,5 +17,6 @@ planRoutes.get('/', listPlatformPlans);
 planRoutes.get('/features', listPlatformFeatures);
 planRoutes.post('/', createPlatformPlan);
 planRoutes.patch('/:id', updatePlatformPlan);
+planRoutes.delete('/:id', deletePlatformPlan);
 planRoutes.post('/:id/activate', activatePlatformPlan);
 planRoutes.post('/:id/deactivate', deactivatePlatformPlan);

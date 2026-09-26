@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import {
   createPlan,
+  deletePlan,
   listActivePublicPlans,
   listFeatureCatalog,
   listPlans,
@@ -95,3 +96,22 @@ async function setPlanState(
     next(error);
   }
 }
+
+export const deletePlatformPlan: RequestHandler = async (req, res, next) => {
+  const id = planIdSchema.safeParse(req.params.id);
+  if (!id.success) {
+    res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'A valid plan ID is required.',
+      },
+    });
+    return;
+  }
+  try {
+    const data = await deletePlan(id.data, req.authenticatedUser!.id);
+    res.status(200).json({ data });
+  } catch (error) {
+    next(error);
+  }
+};

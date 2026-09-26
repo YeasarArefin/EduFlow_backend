@@ -5,6 +5,7 @@ import { students } from '../database/schema/students';
 import { workspaceSettings } from '../database/schema/workspaces';
 import { AppError } from '../middleware/error-handler';
 import { recordAuditLog } from './audit-log.service';
+import { notifyPaymentRecorded } from './notification-channel.service';
 import type { WorkspaceTransaction as Transaction } from '../types/common';
 import type {
   RecordStudentPaymentInput as RecordPaymentInput,
@@ -228,7 +229,7 @@ export async function recordStudentPayment(
       },
     });
 
-    return {
+    const response = {
       payment: mapPayment(payment),
       fee: {
         id: fee.id,
@@ -247,6 +248,8 @@ export async function recordStudentPayment(
         studentCode: student.studentCode,
       },
     };
+    void notifyPaymentRecorded(workspaceId, payment.id).catch(() => undefined);
+    return response;
   });
 }
 

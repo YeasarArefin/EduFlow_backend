@@ -5,70 +5,307 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/sms/templates:
+    get:
+      summary: List workspace SMS templates
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '200': { description: Workspace templates },
+          '403': { description: Workspace Owner role required },
+        }
+    post:
+      summary: Create an SMS template
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '201': { description: Template created },
+          '400': { $ref: '#/components/responses/ValidationError' },
+        }
+  /api/v1/sms/templates/{id}:
+    patch:
+      summary: Edit or deactivate an SMS template
+      security: [{ betterAuth: [] }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        { '200': { description: Template updated }, '404': { description: Template not found } }
+  /api/v1/sms/templates/preview:
+    post:
+      summary: Render a validated SMS template preview
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '200': { description: Rendered body },
+          '400': { $ref: '#/components/responses/ValidationError' },
+        }
+  /api/v1/sms/preview:
+    post:
+      summary: Preview SMS characters, encoding, segments, and credits
+      description: Workspace Owner only. Uses GSM-7 for supported English text and Unicode for Bangla or mixed text. No provider credentials are needed.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '200': { description: Segment and credit preview },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { description: Workspace Owner role required },
+        }
+  /api/v1/sms/messages:
+    post:
+      summary: Queue a manual SMS message and reserve wallet credits
+      description: Workspace Owner only. The server resolves student and guardian phone numbers inside the workspace, deduplicates recipients, and atomically creates the message, recipients, reservation ledger entry, and wallet update. Sending is intentionally not enabled until a provider adapter is supplied.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '201': { description: Message queued },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { description: Workspace Owner role required },
+          '409': { description: Insufficient SMS balance },
+        }
+  /api/v1/sms-wallet:
+    get:
+      summary: Get the server-resolved workspace SMS wallet summary
+      operationId: getSmsWalletSummary
+      description: Workspace Owner only. Returns exact credit totals as decimal strings. Reading remains available without subscription access so an owner can review credits before a future recharge flow.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '200': { description: Available, reserved, purchased, used, and refunded credit totals },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { description: Active Workspace Owner role required },
+        }
+  /api/v1/sms-wallet/history:
+    get:
+      summary: List immutable SMS credit ledger entries
+      operationId: listSmsWalletHistory
+      description: Workspace Owner only. Entries are tenant-scoped, newest first, paginated, and expose signed credit deltas plus post-transaction available and reserved balances.
+      security: [{ betterAuth: [] }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } },
+          {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 25 },
+          },
+        ]
+      responses:
+        {
+          '200': { description: Paginated immutable credit ledger history },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { description: Active Workspace Owner role required },
+        }
+  /api/v1/expenses:
+    get:
+      summary: List tenant-scoped expense records
+      description: Requires `expenses.view`; supports category, status, date-range filters, and pagination. Reversed records remain visible for audit history but do not contribute to totals.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '200': { description: Paginated expenses },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { description: Workspace access or expenses.view permission required },
+        }
+    post:
+      summary: Record a workspace expense in decimal BDT taka
+      description: Requires `expenses.manage`. The authenticated user is recorded server-side.
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '201': { description: Expense created },
+          '400': { $ref: '#/components/responses/ValidationError' },
+        }
+  /api/v1/expenses/{id}:
+    patch:
+      summary: Edit an active expense
+      description: Requires `expenses.manage`; edits are audit logged. Reversed expenses cannot be edited.
+      security: [{ betterAuth: [] }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        { '200': { description: Expense updated }, '409': { description: Expense is reversed } }
+  /api/v1/expenses/{id}/reverse:
+    post:
+      summary: Reverse a recorded expense without deleting history
+      description: Requires `expenses.reverse`; the reversal removes the item from financial totals and writes an audit record.
+      security: [{ betterAuth: [] }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200': { description: Expense reversed },
+          '409': { description: Expense already reversed },
+        }
+  /api/v1/expenses/categories:
+    get:
+      summary: List workspace expense categories
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses: { '200': { description: Expense categories } }
+    post:
+      summary: Create a workspace expense category
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses: { '201': { description: Category created } }
+  /api/v1/expenses/categories/{id}:
+    patch:
+      summary: Update or deactivate an expense category
+      security: [{ betterAuth: [] }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses: { '200': { description: Category updated } }
+  /api/v1/expenses/finance/overview:
+    get:
+      summary: Get a tenant financial overview by payment date
+      description: Student-fee payments, salary-payment rows, and active expense records are summed separately. Salary rows are counted once only.
+      security: [{ betterAuth: [] }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: startDate, in: query, schema: { type: string, format: date } },
+          { name: endDate, in: query, schema: { type: string, format: date } },
+        ]
+      responses:
+        { '200': { description: Financial KPIs, monthly series, and expense category breakdown } }
   /api/v1/notices:
     get:
       summary: List workspace notices
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      responses: { "200": { description: Paginated notices } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses: { '200': { description: Paginated notices } }
     post:
       summary: Create a notice
       description: Workspace Owner only. Persists a tenant-scoped notice before recipients are queued.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      responses: { "201": { description: Notice created }, "400": { $ref: "#/components/responses/ValidationError" }, "403": { description: Workspace Owner and subscription access required } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '201': { description: Notice created },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '403': { description: Workspace Owner and subscription access required },
+        }
   /api/v1/notices/{id}/preview:
     get:
       summary: Preview server-resolved recipients
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Recipient count }, "404": { description: NOTICE_NOT_FOUND or BATCH_NOT_FOUND } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200': { description: Recipient count },
+          '404': { description: NOTICE_NOT_FOUND or BATCH_NOT_FOUND },
+        }
   /api/v1/notices/{id}/queue:
     post:
       summary: Persist recipients idempotently
       description: Resolves the selected audience on the backend and does not reinsert existing notice-recipient rows.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Status summary } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses: { '200': { description: Status summary } }
   /api/v1/notices/{id}/process-next-batch:
     post:
       summary: Deliver the next 25 to 50 queued recipients
       description: Atomically claims queued recipients with SKIP LOCKED, renders each notice, sends through Brevo, then records sent, failed, or skipped status. Sent recipients are never claimed again; only transient failures can be retried up to the configured cap.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Delivery result including claimed, sent, failed, skipped counts and claimed recipient IDs }, "400": { $ref: "#/components/responses/ValidationError" } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200':
+            {
+              description: Delivery result including claimed,
+              sent,
+              failed,
+              skipped counts and claimed recipient IDs,
+            },
+          '400': { $ref: '#/components/responses/ValidationError' },
+        }
   /api/v1/notices/{id}/retry-failed:
     post:
       summary: Requeue failed recipients
       description: Requeues only transient delivery failures that have not reached the retry cap.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Retry count } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses: { '200': { description: Retry count } }
   /api/v1/notices/{id}/progress:
     get:
       summary: Get recipient status summary
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Queued, processing, sent, failed, and skipped counts } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses: { '200': { description: Queued, processing, sent, failed, and skipped counts } }
   /api/v1/notices/{id}:
     get:
       summary: Get notice detail and delivery progress
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Notice detail } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses: { '200': { description: Notice detail } }
   /api/v1/notices/{id}/recipients:
     get:
       summary: List failed or skipped recipients
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Recipient delivery diagnostics } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses: { '200': { description: Recipient delivery diagnostics } }
   /api/v1/sessions:
     get:
       summary: List the current user's active sessions
       operationId: listActiveSessions
       description: Returns non-expired Better Auth sessions for the authenticated user, including device metadata and whether each is the current session.
       security: [{ betterAuth: [] }]
-      responses: { "200": { description: Active sessions }, "401": { $ref: "#/components/responses/Unauthenticated" } }
+      responses:
+        {
+          '200': { description: Active sessions },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+        }
   /api/v1/sessions/{sessionId}:
     delete:
       summary: Revoke one active session
@@ -76,68 +313,189 @@ paths:
       description: Revokes only a session belonging to the authenticated user. The revoked browser loses access on its next authenticated request.
       security: [{ betterAuth: [] }]
       parameters: [{ name: sessionId, in: path, required: true, schema: { type: string } }]
-      responses: { "204": { description: Session revoked }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" } }
+      responses:
+        {
+          '204': { description: Session revoked },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+        }
   /api/v1/sessions/other:
     delete:
       summary: Revoke all other active sessions
       operationId: revokeOtherActiveSessions
       description: Retains the current session and revokes every other Better Auth session owned by the authenticated user.
       security: [{ betterAuth: [] }]
-      responses: { "204": { description: Other sessions revoked }, "401": { $ref: "#/components/responses/Unauthenticated" } }
+      responses:
+        {
+          '204': { description: Other sessions revoked },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+        }
   /api/v1/permission-management:
     get:
       summary: Get workspace role permission configuration
       operationId: getWorkspacePermissionConfiguration
       description: Workspace Owner only. Returns existing permission codes grouped by module with effective workspace role grants.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      responses: { "200": { description: Permission configuration }, "403": { description: WORKSPACE_OWNER_REQUIRED } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '200': { description: Permission configuration },
+          '403': { description: WORKSPACE_OWNER_REQUIRED },
+        }
   /api/v1/permission-management/roles:
     post:
       summary: Create a workspace-owned role
       operationId: createWorkspaceRole
       description: Workspace Owner only. Creates a role with a workspace-local name and selected existing permissions.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      responses: { "201": { description: Workspace role created }, "400": { $ref: "#/components/responses/ValidationError" }, "403": { description: WORKSPACE_OWNER_REQUIRED } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '201': { description: Workspace role created },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '403': { description: WORKSPACE_OWNER_REQUIRED },
+        }
   /api/v1/permission-management/roles/{roleId}:
     patch:
       summary: Update a workspace-owned role and its permissions
       operationId: updateWorkspaceRolePermissions
       description: Workspace Owner only. Owner remains protected and is not represented by an editable role record.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: roleId, in: path, required: true, schema: { type: string, format: uuid } }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [permissions], properties: { permissions: { type: array, items: { type: object, required: [permissionCode, allowed], properties: { permissionCode: { type: integer }, allowed: { type: boolean } } } } } } } } }
-      responses: { "200": { description: Updated configuration }, "400": { $ref: "#/components/responses/ValidationError" }, "403": { description: WORKSPACE_OWNER_REQUIRED } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: roleId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [permissions],
+                      properties:
+                        {
+                          permissions:
+                            {
+                              type: array,
+                              items:
+                                {
+                                  type: object,
+                                  required: [permissionCode, allowed],
+                                  properties:
+                                    {
+                                      permissionCode: { type: integer },
+                                      allowed: { type: boolean },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '200': { description: Updated configuration },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '403': { description: WORKSPACE_OWNER_REQUIRED },
+        }
     delete:
       summary: Delete an unused workspace-owned role
       operationId: deleteWorkspaceRole
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: roleId, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "204": { description: Role deleted }, "409": { description: ROLE_IN_USE } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: roleId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses: { '204': { description: Role deleted }, '409': { description: ROLE_IN_USE } }
   /api/v1/permission-management/members/{memberId}:
     get:
       summary: Get member permission overrides
       operationId: getMemberPermissionOverrides
       description: Workspace Owner only. Returns inherited role access and any member-specific allow or deny override.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: memberId, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Member permission matrix }, "403": { description: WORKSPACE_OWNER_REQUIRED }, "409": { description: OWNER_MEMBER_PROTECTED } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: memberId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200': { description: Member permission matrix },
+          '403': { description: WORKSPACE_OWNER_REQUIRED },
+          '409': { description: OWNER_MEMBER_PROTECTED },
+        }
     patch:
       summary: Replace member permission overrides
       operationId: updateMemberPermissionOverrides
       description: Workspace Owner only. Sends the complete set of explicit member allow or deny overrides; omitted permissions inherit the current role default.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: memberId, in: path, required: true, schema: { type: string, format: uuid } }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [overrides], properties: { overrides: { type: array, items: { type: object, required: [permissionCode, allowed], properties: { permissionCode: { type: integer }, allowed: { type: boolean } } } } } } } } }
-      responses: { "200": { description: Updated member permission matrix }, "400": { $ref: "#/components/responses/ValidationError" }, "403": { description: WORKSPACE_OWNER_REQUIRED }, "409": { description: OWNER_MEMBER_PROTECTED } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: memberId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [overrides],
+                      properties:
+                        {
+                          overrides:
+                            {
+                              type: array,
+                              items:
+                                {
+                                  type: object,
+                                  required: [permissionCode, allowed],
+                                  properties:
+                                    {
+                                      permissionCode: { type: integer },
+                                      allowed: { type: boolean },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '200': { description: Updated member permission matrix },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '403': { description: WORKSPACE_OWNER_REQUIRED },
+          '409': { description: OWNER_MEMBER_PROTECTED },
+        }
     delete:
       summary: Reset member permissions to role defaults
       operationId: resetMemberPermissionOverrides
       description: Workspace Owner only. Removes all explicit member overrides without changing role permissions.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: memberId, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Member now inherits role defaults }, "403": { description: WORKSPACE_OWNER_REQUIRED }, "409": { description: OWNER_MEMBER_PROTECTED } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: memberId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200': { description: Member now inherits role defaults },
+          '403': { description: WORKSPACE_OWNER_REQUIRED },
+          '409': { description: OWNER_MEMBER_PROTECTED },
+        }
   /api/v1/members:
     get:
       summary: List workspace members
@@ -145,22 +503,26 @@ paths:
       description: Requires members.manage. Lists only memberships in the server-resolved workspace with name, email, role, lifecycle status, and joined date.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
         - { name: search, in: query, schema: { type: string } }
         - { name: roleId, in: query, schema: { type: string, format: uuid } }
         - { name: status, in: query, schema: { type: string, enum: [active, suspended, removed] } }
       responses:
-        "200": { description: Paginated workspace members }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace subscription access and members.manage required }
+        '200': { description: Paginated workspace members }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { description: Workspace subscription access and members.manage required }
     post:
       summary: Create an EduFlow account and workspace membership
       operationId: addWorkspaceMember
       description: Requires members.manage. Creates the email/password account and assigns a role owned by the current workspace. Owner is never assignable through this endpoint.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
       requestBody:
         required: true
         content:
@@ -170,68 +532,110 @@ paths:
               required: [name, email, password, roleId]
               properties:
                 email: { type: string, format: email }
-                password: { type: string, minLength: 12 }
+                password: { type: string, minLength: 8 }
                 roleId: { type: string, format: uuid }
       responses:
-        "201": { description: Workspace member added }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "404": { description: ROLE_NOT_FOUND }
-        "409": { description: Existing email or duplicate membership }
+        '201': { description: Workspace member added }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: ROLE_NOT_FOUND }
+        '409': { description: Existing email or duplicate membership }
   /api/v1/members/{id}/role:
     patch:
       summary: Change a workspace member role
       operationId: updateWorkspaceMemberRole
       description: Requires members.manage. The current workspace owner cannot be changed.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [roleId], properties: { roleId: { type: string, format: uuid } } } } } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [roleId],
+                      properties: { roleId: { type: string, format: uuid } },
+                    },
+                },
+            },
+        }
       responses:
-        "200": { description: Updated workspace member }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "404": { description: MEMBER_NOT_FOUND }
-        "409": { description: OWNER_MEMBER_PROTECTED }
+        '200': { description: Updated workspace member }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: MEMBER_NOT_FOUND }
+        '409': { description: OWNER_MEMBER_PROTECTED }
   /api/v1/members/{id}/status:
     patch:
       summary: Suspend or reactivate a workspace member
       operationId: updateWorkspaceMemberStatus
       description: Requires members.manage. The current workspace owner cannot be suspended.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [active, suspended] } } } } } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [status],
+                      properties: { status: { type: string, enum: [active, suspended] } },
+                    },
+                },
+            },
+        }
       responses:
-        "200": { description: Updated workspace member }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "404": { description: MEMBER_NOT_FOUND }
-        "409": { description: OWNER_MEMBER_PROTECTED }
+        '200': { description: Updated workspace member }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: MEMBER_NOT_FOUND }
+        '409': { description: OWNER_MEMBER_PROTECTED }
   /api/v1/members/{id}:
     delete:
       summary: Archive a workspace member
       operationId: removeWorkspaceMember
       description: Requires members.manage. Archives the membership as removed; it does not delete the user account. The current workspace owner cannot be removed.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
       responses:
-        "200": { description: Archived workspace member }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "404": { description: MEMBER_NOT_FOUND }
-        "409": { description: OWNER_MEMBER_PROTECTED }
+        '200': { description: Archived workspace member }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: MEMBER_NOT_FOUND }
+        '409': { description: OWNER_MEMBER_PROTECTED }
   /api/v1/workspace-settings:
     get:
       summary: Get workspace settings
       operationId: getWorkspaceSettings
       description: Workspace Owner only. Returns coaching profile, billing, SMS, and reminder settings for the server-resolved workspace.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
       responses:
-        "200": { description: Current workspace settings }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Active workspace subscription and Workspace Owner role required }
+        '200': { description: Current workspace settings }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { description: Active workspace subscription and Workspace Owner role required }
     patch:
       summary: Update workspace settings
       operationId: updateWorkspaceSettings
       description: Workspace Owner only. Updates only supplied coaching profile, billing, SMS, or reminder fields and records an audit event.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
       requestBody:
         required: true
         content:
@@ -255,10 +659,10 @@ paths:
                 graceReminderEnabled: { type: boolean }
                 overdueWarningEnabled: { type: boolean }
       responses:
-        "200": { description: Updated workspace settings }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Active workspace subscription and Workspace Owner role required }
+        '200': { description: Updated workspace settings }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { description: Active workspace subscription and Workspace Owner role required }
   /api/v1/teacher-salaries:
     get:
       summary: List workspace teacher salary snapshots
@@ -266,57 +670,144 @@ paths:
       description: Requires fees.view. Lists only the server-resolved workspace; filter by salaryMonth and derived status. Monetary values are exact NUMERIC(19,2) strings.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
-        - { name: salaryMonth, in: query, schema: { type: string, format: date, pattern: '^[1-9]\\d{3}-\\d{2}-01$' } }
-        - { name: status, in: query, schema: { type: string, enum: [pending, partially_paid, paid, overdue, waived] } }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - {
+            name: salaryMonth,
+            in: query,
+            schema: { type: string, format: date, pattern: '^[1-9]\\d{3}-\\d{2}-01$' },
+          }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [pending, partially_paid, paid, overdue, waived] },
+          }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
-      responses: { "200": { description: Paginated salary snapshots }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { description: Workspace subscription access and fees.view required } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+      responses:
+        {
+          '200': { description: Paginated salary snapshots },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { description: Workspace subscription access and fees.view required },
+        }
   /api/v1/teacher-salaries/generate:
     post:
       summary: Bulk generate active teacher salary snapshots
       operationId: bulkGenerateTeacherSalaries
       description: Requires fees.generate. Active teachers are inserted idempotently; later teacher salary changes cannot rewrite existing monthly rows.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [salaryMonth], properties: { salaryMonth: { type: string, format: date, pattern: '^[1-9]\\d{3}-\\d{2}-01$' } } } } }
-      responses: { "200": { description: Generation counts }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { description: Workspace subscription access and fees.generate required } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [salaryMonth],
+                      properties:
+                        {
+                          salaryMonth:
+                            { type: string, format: date, pattern: '^[1-9]\\d{3}-\\d{2}-01$' },
+                        },
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '200': { description: Generation counts },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { description: Workspace subscription access and fees.generate required },
+        }
   /api/v1/teacher-salaries/teachers/{teacherId}/generate:
     post:
       summary: Generate one teacher salary snapshot
       operationId: generateTeacherSalary
       description: Requires fees.generate. Returns 201 for a newly generated active teacher row and 200 for an idempotent retry.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [salaryMonth], properties: { salaryMonth: { type: string, format: date, pattern: '^[1-9]\\d{3}-\\d{2}-01$' } } } } }
-      responses: { "200": { description: Existing salary snapshot }, "201": { description: New salary snapshot }, "404": { description: TEACHER_NOT_FOUND }, "409": { description: TEACHER_NOT_SALARY_ELIGIBLE } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [salaryMonth],
+                      properties:
+                        {
+                          salaryMonth:
+                            { type: string, format: date, pattern: '^[1-9]\\d{3}-\\d{2}-01$' },
+                        },
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '200': { description: Existing salary snapshot },
+          '201': { description: New salary snapshot },
+          '404': { description: TEACHER_NOT_FOUND },
+          '409': { description: TEACHER_NOT_SALARY_ELIGIBLE },
+        }
   /api/v1/teacher-salaries/teachers/{teacherId}:
     get:
       summary: Get a teacher salary history
       operationId: getTeacherSalaryHistory
       description: Requires fees.view and returns only the requested teacher in the current workspace.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { description: Paginated teacher salary history }, "404": { description: TEACHER_NOT_FOUND } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200': { description: Paginated teacher salary history },
+          '404': { description: TEACHER_NOT_FOUND },
+        }
   /api/v1/teacher-salaries/{id}/payments:
     get:
       summary: List payments for a teacher salary ledger
       operationId: listTeacherSalaryPayments
       description: Requires fees.view. Returns immutable payments only for the requested salary ledger in the server-resolved workspace.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
       responses:
-        "200": { description: Teacher salary payment history }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace subscription access and fees.view required }
-        "404": { description: TEACHER_SALARY_NOT_FOUND }
+        '200': { description: Teacher salary payment history }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { description: Workspace subscription access and fees.view required }
+        '404': { description: TEACHER_SALARY_NOT_FOUND }
     post:
       summary: Record a teacher salary payment
       operationId: recordTeacherSalaryPayment
       description: Requires fees.collect. Atomically records an immutable payout and updates the salary balance. Payments above the remaining balance are rejected.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { name: id, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
       requestBody:
         required: true
         content:
@@ -326,17 +817,24 @@ paths:
               additionalProperties: false
               required: [amount, paymentMethod]
               properties:
-                amount: { oneOf: [{ type: string, pattern: '^\d+(\.\d{1,2})?$' }, { type: number, exclusiveMinimum: 0 }] }
+                amount:
+                  {
+                    oneOf:
+                      [
+                        { type: string, pattern: '^\d+(\.\d{1,2})?$' },
+                        { type: number, exclusiveMinimum: 0 },
+                      ],
+                  }
                 paymentMethod: { type: string, enum: [cash, bkash, nagad, rocket, other] }
                 paymentDate: { type: string, format: date }
                 note: { type: string, maxLength: 500 }
       responses:
-        "201": { description: Recorded payment and updated salary balance }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace subscription access and fees.collect required }
-        "404": { description: TEACHER_SALARY_NOT_FOUND }
-        "409": { description: TEACHER_SALARY_ALREADY_SETTLED or EXCESS_SALARY_PAYMENT_NOT_ALLOWED }
+        '201': { description: Recorded payment and updated salary balance }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { description: Workspace subscription access and fees.collect required }
+        '404': { description: TEACHER_SALARY_NOT_FOUND }
+        '409': { description: TEACHER_SALARY_ALREADY_SETTLED or EXCESS_SALARY_PAYMENT_NOT_ALLOWED }
   /api/v1/attendance-sessions:
     get:
       summary: List attendance sessions
@@ -348,17 +846,34 @@ paths:
         and current present/absent totals. Archived enrollments do not remove historical session records.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: batchId, in: query, schema: { type: string, format: uuid } }
         - { name: sessionDate, in: query, schema: { type: string, format: date } }
-        - { name: status, in: query, schema: { $ref: "#/components/schemas/AttendanceSessionStatus" } }
-        - { $ref: "#/components/parameters/AttendancePage" }
-        - { $ref: "#/components/parameters/AttendanceLimit" }
+        - {
+            name: status,
+            in: query,
+            schema: { $ref: '#/components/schemas/AttendanceSessionStatus' },
+          }
+        - { $ref: '#/components/parameters/AttendancePage' }
+        - { $ref: '#/components/parameters/AttendanceLimit' }
       responses:
-        "200": { description: Paginated workspace attendance sessions, content: { application/json: { schema: { $ref: "#/components/schemas/AttendanceSessionListResponse" } } } }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or attendance.view permission required }
+        '200':
+          {
+            description: Paginated workspace attendance sessions,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/AttendanceSessionListResponse' } },
+              },
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or attendance.view permission required,
+          }
     post:
       summary: Create a draft attendance session and snapshot its roster
       operationId: createAttendanceSession
@@ -368,17 +883,31 @@ paths:
         sessionDate. Each generated record defaults to absent. A batch/date may have one session only.
         Later enrollment or student changes never rewrite the snapshot. An empty eligible roster is valid.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/CreateAttendanceSession" } } }
+        content:
+          { application/json: { schema: { $ref: '#/components/schemas/CreateAttendanceSession' } } }
       responses:
-        "201": { description: Draft session and roster created, content: { application/json: { schema: { $ref: "#/components/schemas/AttendanceSessionResponse" } } } }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or attendance.mark permission required }
-        "404": { description: BATCH_NOT_FOUND, including another workspace's batch ID }
-        "409": { description: BATCH_NOT_ACTIVE or ATTENDANCE_SESSION_ALREADY_EXISTS }
+        '201':
+          {
+            description: Draft session and roster created,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/AttendanceSessionResponse' } },
+              },
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or attendance.mark permission required,
+          }
+        '404': { description: BATCH_NOT_FOUND, including another workspace's batch ID }
+        '409': { description: BATCH_NOT_ACTIVE or ATTENDANCE_SESSION_ALREADY_EXISTS }
   /api/v1/attendance-sessions/{id}:
     get:
       summary: Get an attendance session and its roster
@@ -386,14 +915,27 @@ paths:
       description: Requires attendance.view (1301). Returns the immutable roster snapshot and each present/absent status.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
-        - { $ref: "#/components/parameters/AttendanceSessionId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - { $ref: '#/components/parameters/AttendanceSessionId' }
       responses:
-        "200": { description: Attendance session with records, content: { application/json: { schema: { $ref: "#/components/schemas/AttendanceSessionResponse" } } } }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or attendance.view permission required }
-        "404": { description: ATTENDANCE_SESSION_NOT_FOUND, including another workspace's ID }
+        '200':
+          {
+            description: Attendance session with records,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/AttendanceSessionResponse' } },
+              },
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or attendance.view permission required,
+          }
+        '404': { description: ATTENDANCE_SESSION_NOT_FOUND, including another workspace's ID }
   /api/v1/attendance-sessions/{id}/records:
     patch:
       summary: Bulk save attendance statuses for a draft session
@@ -405,18 +947,32 @@ paths:
         by this phase.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
-        - { $ref: "#/components/parameters/AttendanceSessionId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - { $ref: '#/components/parameters/AttendanceSessionId' }
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/BulkSaveAttendance" } } }
+        content:
+          { application/json: { schema: { $ref: '#/components/schemas/BulkSaveAttendance' } } }
       responses:
-        "200": { description: Updated draft session and complete roster, content: { application/json: { schema: { $ref: "#/components/schemas/AttendanceSessionResponse" } } } }
-        "400": { description: ValidationError or ATTENDANCE_ROSTER_MISMATCH }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or attendance.update permission required }
-        "404": { description: ATTENDANCE_SESSION_NOT_FOUND }
-        "409": { description: ATTENDANCE_SESSION_FINALIZED }
+        '200':
+          {
+            description: Updated draft session and complete roster,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/AttendanceSessionResponse' } },
+              },
+          }
+        '400': { description: ValidationError or ATTENDANCE_ROSTER_MISMATCH }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or attendance.update permission required,
+          }
+        '404': { description: ATTENDANCE_SESSION_NOT_FOUND }
+        '409': { description: ATTENDANCE_SESSION_FINALIZED }
   /api/v1/attendance-sessions/{id}/finalize:
     post:
       summary: Finalize an attendance session
@@ -426,15 +982,28 @@ paths:
         roster and statuses against all later updates. Reopening is intentionally outside this phase.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
-        - { $ref: "#/components/parameters/AttendanceSessionId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - { $ref: '#/components/parameters/AttendanceSessionId' }
       responses:
-        "200": { description: Finalized session and roster, content: { application/json: { schema: { $ref: "#/components/schemas/AttendanceSessionResponse" } } } }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or attendance.finalize permission required }
-        "404": { description: ATTENDANCE_SESSION_NOT_FOUND }
-        "409": { description: ATTENDANCE_SESSION_FINALIZED }
+        '200':
+          {
+            description: Finalized session and roster,
+            content:
+              {
+                application/json:
+                  { schema: { $ref: '#/components/schemas/AttendanceSessionResponse' } },
+              },
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or attendance.finalize permission required,
+          }
+        '404': { description: ATTENDANCE_SESSION_NOT_FOUND }
+        '409': { description: ATTENDANCE_SESSION_FINALIZED }
   /api/v1/student-fees/enrollments/{enrollmentId}/generate:
     post:
       summary: Generate one enrollment's monthly fee snapshot
@@ -451,30 +1020,45 @@ paths:
         records and the fees.generated audit entry commit atomically. No payment or receipt is created.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/GenerateStudentFee" }
+            schema: { $ref: '#/components/schemas/GenerateStudentFee' }
       responses:
-        "201":
+        '201':
           description: New monthly fee snapshot created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentFeeResponse" }
-        "200":
+              schema: { $ref: '#/components/schemas/StudentFeeResponse' }
+        '200':
           description: Existing monthly fee snapshot returned; no financial or date fields rewritten
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentFeeResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.generate permission required }
-        "404": { description: ENROLLMENT_NOT_FOUND; includes enrollment IDs outside the current workspace }
-        "409": { description: ENROLLMENT_NOT_FEE_ELIGIBLE or FEE_SETTINGS_INVALID (due day must be 1–31 and grace days 0–365) }
-        "429": { description: FEE_GENERATION_RATE_LIMITED; maximum 60 generation requests per workspace per minute, shared with bulk generation. Global IP limits also apply. }
+              schema: { $ref: '#/components/schemas/StudentFeeResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.generate permission required,
+          }
+        '404':
+          {
+            description: ENROLLMENT_NOT_FOUND; includes enrollment IDs outside the current workspace,
+          }
+        '409':
+          {
+            description: ENROLLMENT_NOT_FEE_ELIGIBLE or FEE_SETTINGS_INVALID (due day must be 1–31 and grace days 0–365),
+          }
+        '429':
+          {
+            description: FEE_GENERATION_RATE_LIMITED; maximum 60 generation requests per workspace per minute,
+            shared with bulk generation. Global IP limits also apply.,
+          }
   /api/v1/student-fees/generate:
     post:
       summary: Bulk generate eligible active enrollment fees for a month
@@ -486,14 +1070,14 @@ paths:
         Counts describe currently eligible enrollments; old fees for now-inactive enrollments remain in
         history but are excluded from these counts. An empty eligible set is a successful no-op.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/GenerateStudentFee" }
+            schema: { $ref: '#/components/schemas/GenerateStudentFee' }
       responses:
-        "200":
+        '200':
           description: Generation counts, including idempotent retries
           content:
             application/json:
@@ -505,15 +1089,29 @@ paths:
                     type: object
                     required: [feeMonth, eligible, created, existing]
                     properties:
-                      feeMonth: { $ref: "#/components/schemas/FeeMonth" }
+                      feeMonth: { $ref: '#/components/schemas/FeeMonth' }
                       eligible: { type: integer, minimum: 0 }
                       created: { type: integer, minimum: 0 }
-                      existing: { type: integer, minimum: 0, description: Eligible rows already generated, including concurrent inserts }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.generate permission required }
-        "409": { description: FEE_SETTINGS_INVALID; no rows generated }
-        "429": { description: FEE_GENERATION_RATE_LIMITED; shares the 60 requests per workspace per minute generation limit. Global IP limits also apply. }
+                      existing:
+                        {
+                          type: integer,
+                          minimum: 0,
+                          description: Eligible rows already generated,
+                          including concurrent inserts,
+                        }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.generate permission required,
+          }
+        '409': { description: FEE_SETTINGS_INVALID; no rows generated }
+        '429':
+          {
+            description: FEE_GENERATION_RATE_LIMITED; shares the 60 requests per workspace per minute generation limit. Global IP limits also apply.,
+          }
   /api/v1/student-fees:
     get:
       summary: List workspace fees by month and optional status
@@ -525,20 +1123,30 @@ paths:
         Ordered by feeMonth descending then id descending. Unknown query fields are rejected.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
-        - { name: feeMonth, in: query, required: true, schema: { $ref: "#/components/schemas/FeeMonth" } }
-        - { $ref: "#/components/parameters/FeeStatusFilter" }
-        - { $ref: "#/components/parameters/FeePage" }
-        - { $ref: "#/components/parameters/FeeLimit" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - {
+            name: feeMonth,
+            in: query,
+            required: true,
+            schema: { $ref: '#/components/schemas/FeeMonth' },
+          }
+        - { $ref: '#/components/parameters/FeeStatusFilter' }
+        - { $ref: '#/components/parameters/FeePage' }
+        - { $ref: '#/components/parameters/FeeLimit' }
       responses:
-        "200":
+        '200':
           description: Paginated fee snapshots and matching total
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentFeeListResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.view permission required }
+              schema: { $ref: '#/components/schemas/StudentFeeListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.view permission required,
+          }
   /api/v1/students/{id}/fees:
     get:
       summary: Get a student's monthly fee history across enrollments
@@ -549,22 +1157,28 @@ paths:
         fee list. Month is optional. Archived history remains visible; a student without fees has an empty list.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
-        - { $ref: "#/components/parameters/StudentId" }
-        - { name: feeMonth, in: query, schema: { $ref: "#/components/schemas/FeeMonth" } }
-        - { $ref: "#/components/parameters/FeeStatusFilter" }
-        - { $ref: "#/components/parameters/FeePage" }
-        - { $ref: "#/components/parameters/FeeLimit" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - { $ref: '#/components/parameters/StudentId' }
+        - { name: feeMonth, in: query, schema: { $ref: '#/components/schemas/FeeMonth' } }
+        - { $ref: '#/components/parameters/FeeStatusFilter' }
+        - { $ref: '#/components/parameters/FeePage' }
+        - { $ref: '#/components/parameters/FeeLimit' }
       responses:
-        "200":
+        '200':
           description: Paginated historical snapshots
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentFeeListResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.view permission required }
-        "404": { description: STUDENT_NOT_FOUND; includes student IDs outside the current workspace }
+              schema: { $ref: '#/components/schemas/StudentFeeListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.view permission required,
+          }
+        '404':
+          { description: STUDENT_NOT_FOUND; includes student IDs outside the current workspace }
   /api/v1/student-fees/{id}/payments:
     post:
       summary: Record a payment against a student fee
@@ -577,24 +1191,35 @@ paths:
         Historical payments are immutable.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/RecordStudentPayment" }
+            schema: { $ref: '#/components/schemas/RecordStudentPayment' }
       responses:
-        "201":
+        '201':
           description: Payment successfully recorded
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/RecordStudentPaymentResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.collect permission required }
-        "404": { description: FEE_NOT_FOUND or STUDENT_NOT_FOUND }
-        "409": { description: EXCESS_PAYMENT_NOT_ALLOWED, FEE_ALREADY_PAID, FEE_ALREADY_WAIVED, or DUPLICATE_RECEIPT_NUMBER }
+              schema: { $ref: '#/components/schemas/RecordStudentPaymentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.collect permission required,
+          }
+        '404': { description: FEE_NOT_FOUND or STUDENT_NOT_FOUND }
+        '409':
+          {
+            description: EXCESS_PAYMENT_NOT_ALLOWED,
+            FEE_ALREADY_PAID,
+            FEE_ALREADY_WAIVED,
+            or DUPLICATE_RECEIPT_NUMBER,
+          }
     get:
       summary: List all payments recorded for a fee
       operationId: listStudentFeePayments
@@ -603,18 +1228,23 @@ paths:
         the specified student fee in reverse chronological order.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        "200":
+        '200':
           description: List of payments for this fee
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentPaymentListResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.view permission required }
-        "404": { description: FEE_NOT_FOUND }
+              schema: { $ref: '#/components/schemas/StudentPaymentListResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.view permission required,
+          }
+        '404': { description: FEE_NOT_FOUND }
   /api/v1/students/{id}/payments:
     get:
       summary: List payment history for a student
@@ -624,23 +1254,36 @@ paths:
         for the student across all fees, with optional date and method filters.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
-        - { $ref: "#/components/parameters/StudentId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - { $ref: '#/components/parameters/StudentId' }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
         - { name: startDate, in: query, schema: { type: string, format: date } }
         - { name: endDate, in: query, schema: { type: string, format: date } }
-        - { name: paymentMethod, in: query, schema: { type: string, enum: [cash, bkash, nagad, rocket, other] } }
+        - {
+            name: paymentMethod,
+            in: query,
+            schema: { type: string, enum: [cash, bkash, nagad, rocket, other] },
+          }
       responses:
-        "200":
+        '200':
           description: Paginated student payment history
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentPaymentHistoryResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.view permission required }
-        "404": { description: STUDENT_NOT_FOUND }
+              schema: { $ref: '#/components/schemas/StudentPaymentHistoryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.view permission required,
+          }
+        '404': { description: STUDENT_NOT_FOUND }
   /api/v1/student-payments/{id}:
     get:
       summary: Get payment and receipt detail by ID
@@ -649,18 +1292,23 @@ paths:
         Requires subscription access and fees.view (1401). Returns the payment record, fee context, and student metadata.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        "200":
+        '200':
           description: Payment detail
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentPaymentDetailResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.view permission required }
-        "404": { description: PAYMENT_NOT_FOUND }
+              schema: { $ref: '#/components/schemas/StudentPaymentDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.view permission required,
+          }
+        '404': { description: PAYMENT_NOT_FOUND }
   /api/v1/student-payments/receipts/{receiptNumber}:
     get:
       summary: Get payment and receipt detail by receipt number
@@ -669,18 +1317,23 @@ paths:
         Requires subscription access and fees.view (1401). Looks up a receipt by its unique workspace receipt number.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: receiptNumber, in: path, required: true, schema: { type: string } }
       responses:
-        "200":
+        '200':
           description: Receipt and payment detail
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StudentPaymentDetailResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { description: Workspace membership, subscription access, or fees.view permission required }
-        "404": { description: RECEIPT_NOT_FOUND }
+              schema: { $ref: '#/components/schemas/StudentPaymentDetailResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403':
+          {
+            description: Workspace membership,
+            subscription access,
+            or fees.view permission required,
+          }
+        '404': { description: RECEIPT_NOT_FOUND }
 
   /api/v1/activity:
     get:
@@ -690,14 +1343,22 @@ paths:
       security: [{ betterAuth: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
         - { name: search, in: query, schema: { type: string, maxLength: 100 } }
-        - { name: category, in: query, schema: { type: string, enum: [payment, plan, entitlement, lifecycle] } }
+        - {
+            name: category,
+            in: query,
+            schema: { type: string, enum: [payment, plan, entitlement, lifecycle] },
+          }
       responses:
-        "200": { description: Paginated platform activity with safe metadata summaries }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        '200': { description: Paginated platform activity with safe metadata summaries }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
   /api/v1/account/state:
     get:
       summary: Get the authenticated account's SaaS routing state
@@ -705,7 +1366,7 @@ paths:
       description: Database-derived routing state. A workspace membership takes precedence over an approved unused purchase; pending purchases route to payment review.
       security: [{ betterAuth: [] }]
       responses:
-        "200":
+        '200':
           description: Current account routing state
           content:
             application/json:
@@ -717,27 +1378,31 @@ paths:
                     type: object
                     required: [route]
                     properties:
-                      route: { type: string, enum: [dashboard, workspace_creation, payment_pending, account] }
+                      route:
+                        {
+                          type: string,
+                          enum: [dashboard, workspace_creation, payment_pending, account],
+                        }
                       workspaceId: { type: string, format: uuid }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
   /api/v1/workspaces/onboarding-state:
     get:
       summary: Get the current workspace onboarding state
       operationId: getWorkspaceOnboardingState
       description: Returns routing state derived from existing workspace, subscription-access, and payment-request records.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
       responses:
-        "200":
+        '200':
           description: Current onboarding state
           content:
             application/json:
               schema:
                 type: object
                 required: [data]
-                properties: { data: { $ref: "#/components/schemas/WorkspaceOnboardingState" } }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
+                properties: { data: { $ref: '#/components/schemas/WorkspaceOnboardingState' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/WorkspaceMembershipRequired' }
   /api/v1/workspaces/onboard:
     post:
       summary: Create the workspace for an approved account purchase
@@ -748,55 +1413,103 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CreateWorkspaceOnboard" }
+            schema: { $ref: '#/components/schemas/CreateWorkspaceOnboard' }
       responses:
-        "201":
+        '201':
           description: Active workspace created from the approved purchase
           content:
             application/json:
               schema:
                 type: object
                 required: [data]
-                properties: { data: { $ref: "#/components/schemas/OnboardedWorkspace" } }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "409": { description: Workspace already exists, slug already exists, or creation is not unlocked by an approved purchase }
+                properties: { data: { $ref: '#/components/schemas/OnboardedWorkspace' } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409':
+          {
+            description: Workspace already exists,
+            slug already exists,
+            or creation is not unlocked by an approved purchase,
+          }
   /api/v1/workspaces/dashboard-summary:
     get:
       summary: Get the current workspace dashboard summary
       operationId: getWorkspaceDashboardSummary
-      description: Returns the authenticated member's own workspace identity, access state, current plan dates, effective feature entitlements, membership count, and latest subscription-payment status. The workspace is resolved only from the verified X-Workspace-Id membership context.
+      description: Returns the authenticated member's own workspace identity, access state, current plan dates, effective feature entitlements, membership count, latest subscription-payment status, and tenant-scoped operational aggregates. Financial values are exact decimal strings. The workspace is resolved only from the verified X-Workspace-Id membership context.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - name: month
+          in: query
+          required: false
+          description: First day of the month to aggregate, in YYYY-MM-01 format. Defaults to the current Bangladesh month.
+          schema: { type: string, format: date, pattern: "^[1-9]\\d{3}-\\d{2}-01$" }
+        - name: batchId
+          in: query
+          required: false
+          description: Restricts scheduled-batch, attendance, fee-collection, and outstanding-fee aggregates to one batch in the current workspace. Salary and expense totals remain workspace-wide because those records are not batch-owned.
+          schema: { type: string, format: uuid }
       responses:
-        "200":
+        '200':
           description: Current workspace dashboard information
           content:
             application/json:
               schema:
                 type: object
                 required: [data]
-                properties: { data: { $ref: "#/components/schemas/WorkspaceDashboardSummary" } }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
-        "404": { description: Workspace not found }
+                properties: { data: { $ref: '#/components/schemas/WorkspaceDashboardSummary' } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/WorkspaceMembershipRequired' }
+        '404': { description: Workspace not found }
   /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
   /api/v1/teachers:
     get:
       summary: List workspace teachers
       operationId: listTeachers
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      responses: { "200": { description: Paginated teachers }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        {
+          '200': { description: Paginated teachers },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/StudentAccessRequired' },
+        }
     post:
       summary: Create a workspace teacher
       operationId: createTeacher
       security: [{ betterAuth: [] }]
-      responses: { "201": { description: Teacher created }, "400": { $ref: "#/components/responses/ValidationError" }, "409": { description: Teacher code already exists in this workspace } }
+      responses:
+        {
+          '201': { description: Teacher created },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '409': { description: Teacher code already exists in this workspace },
+        }
   /api/v1/teachers/{id}:
-    get: { summary: Get workspace teacher, operationId: getTeacher, security: [{ betterAuth: [] }], responses: { "200": { description: Teacher }, "404": { description: Teacher not found } } }
-    patch: { summary: Update or reactivate workspace teacher, operationId: updateTeacher, security: [{ betterAuth: [] }], responses: { "200": { description: Teacher updated }, "409": { description: Teacher code already exists in this workspace } } }
-    delete: { summary: Archive workspace teacher, operationId: archiveTeacher, security: [{ betterAuth: [] }], responses: { "200": { description: Teacher archived } } }
+    get:
+      {
+        summary: Get workspace teacher,
+        operationId: getTeacher,
+        security: [{ betterAuth: [] }],
+        responses: { '200': { description: Teacher }, '404': { description: Teacher not found } },
+      }
+    patch:
+      {
+        summary: Update or reactivate workspace teacher,
+        operationId: updateTeacher,
+        security: [{ betterAuth: [] }],
+        responses:
+          {
+            '200': { description: Teacher updated },
+            '409': { description: Teacher code already exists in this workspace },
+          },
+      }
+    delete:
+      {
+        summary: Archive workspace teacher,
+        operationId: archiveTeacher,
+        security: [{ betterAuth: [] }],
+        responses: { '200': { description: Teacher archived } },
+      }
   /api/v1/batches:
     get:
       summary: List workspace batches
@@ -804,114 +1517,273 @@ paths:
       description: Returns a paginated, search-filtered list scoped to the verified workspace context. Requires active subscription access and batches.view permission.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
         - { name: search, in: query, schema: { type: string, minLength: 1, maxLength: 100 } }
         - { name: status, in: query, schema: { type: string, enum: [active, inactive, archived] } }
       responses:
-        "200": { $ref: "#/components/responses/BatchList" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/BatchAccessRequired" }
+        '200': { $ref: '#/components/responses/BatchList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/BatchAccessRequired' }
     post:
       summary: Create a workspace batch profile
       operationId: createBatch
       description: Creates a batch with workspace-owned academic references and weekday class days (Sunday=0 through Saturday=6). The optional start date is a calendar date. Teacher and student assignments are intentionally excluded.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateBatch" } } } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/CreateBatch' } } },
+        }
       responses:
-        "201": { $ref: "#/components/responses/BatchResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/BatchAccessRequired" }
-        "409": { description: A batch with this name already exists in this workspace }
+        '201': { $ref: '#/components/responses/BatchResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/BatchAccessRequired' }
+        '409': { description: A batch with this name already exists in this workspace }
   /api/v1/batches/{id}:
     get:
       summary: Get workspace batch detail
       operationId: getBatch
       description: Returns the batch profile and its academic labels, all scoped to the verified workspace.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
-      responses: { "200": { $ref: "#/components/responses/BatchResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch not found in this workspace },
+        }
     patch:
       summary: Update or reactivate a workspace batch profile
       operationId: updateBatch
       description: Updates batch profile values, including its weekday class-day schedule. Teacher and student assignments are intentionally excluded.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateBatch" } } } }
-      responses: { "200": { $ref: "#/components/responses/BatchResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace }, "409": { description: A batch with this name already exists in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+        ]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/UpdateBatch' } } },
+        }
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch not found in this workspace },
+          '409': { description: A batch with this name already exists in this workspace },
+        }
     delete:
       summary: Archive a workspace batch
       operationId: archiveBatch
       description: Soft-archives the batch by setting its status to archived; no batch profile data is hard-deleted.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
-      responses: { "200": { $ref: "#/components/responses/BatchResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch not found in this workspace },
+        }
   /api/v1/batches/{id}/teachers:
     get:
       summary: List teachers assigned to a batch
       operationId: listBatchTeachers
       description: Returns teachers assigned to the verified workspace batch, with the optional primary-teacher flag.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
-      responses: { "200": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchTeachersResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch not found in this workspace },
+        }
     post:
       summary: Assign a teacher to a batch
       operationId: assignBatchTeacher
       description: Assigns one workspace-owned teacher. A teacher can be assigned once per batch; setting isPrimary replaces any existing primary teacher.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AssignBatchTeacher" } } } }
-      responses: { "201": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch or teacher not found in this workspace }, "409": { description: Teacher is already assigned to this batch } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            { application/json: { schema: { $ref: '#/components/schemas/AssignBatchTeacher' } } },
+        }
+      responses:
+        {
+          '201': { $ref: '#/components/responses/BatchTeachersResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch or teacher not found in this workspace },
+          '409': { description: Teacher is already assigned to this batch },
+        }
   /api/v1/batches/{id}/teachers/{teacherId}:
     patch:
       summary: Set or clear a batch primary teacher
       operationId: updateBatchTeacher
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateBatchTeacher" } } } }
-      responses: { "200": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch teacher assignment not found } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+          { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            { application/json: { schema: { $ref: '#/components/schemas/UpdateBatchTeacher' } } },
+        }
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchTeachersResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch teacher assignment not found },
+        }
     delete:
       summary: Remove a teacher from a batch
       operationId: removeBatchTeacher
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { $ref: "#/components/responses/BatchTeachersResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch teacher assignment not found } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+          { name: teacherId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchTeachersResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch teacher assignment not found },
+        }
   /api/v1/batches/{id}/students:
     get:
       summary: List students enrolled in a batch
       operationId: listBatchStudents
       description: Returns students enrolled in the verified workspace batch with customized fee information and status.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
-      responses: { "200": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch not found in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchEnrollmentsResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch not found in this workspace },
+        }
     post:
       summary: Enroll a student into a batch
       operationId: enrollBatchStudent
       description: Enrolls an active workspace student into the batch with optional fee overrides or discounts.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/EnrollStudent" } } } }
-      responses: { "201": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Batch or student not found in this workspace }, "409": { description: Student is already actively enrolled in this batch } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+        ]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/EnrollStudent' } } },
+        }
+      responses:
+        {
+          '201': { $ref: '#/components/responses/BatchEnrollmentsResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Batch or student not found in this workspace },
+          '409': { description: Student is already actively enrolled in this batch },
+        }
   /api/v1/batches/{id}/students/{enrollmentId}:
     patch:
       summary: Update or archive/reactivate student enrollment
       operationId: updateBatchEnrollment
       description: Updates student fee configuration, joined date, or status (active, inactive, archived).
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateEnrollment" } } } }
-      responses: { "200": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Student enrollment not found in this batch } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+          { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      requestBody:
+        {
+          required: true,
+          content:
+            { application/json: { schema: { $ref: '#/components/schemas/UpdateEnrollment' } } },
+        }
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchEnrollmentsResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Student enrollment not found in this batch },
+        }
     delete:
       summary: Archive a student's batch enrollment
       operationId: archiveBatchEnrollment
       description: Archives the enrollment without deleting it, preserving enrollment history.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/BatchId" }, { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } }]
-      responses: { "200": { $ref: "#/components/responses/BatchEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/BatchAccessRequired" }, "404": { description: Student enrollment not found in this batch } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/BatchId' },
+          { name: enrollmentId, in: path, required: true, schema: { type: string, format: uuid } },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/BatchEnrollmentsResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/BatchAccessRequired' },
+          '404': { description: Student enrollment not found in this batch },
+        }
   /api/v1/students:
     get:
       summary: List workspace students
@@ -919,70 +1791,127 @@ paths:
       description: Returns a paginated, search-filtered list scoped to the verified workspace context. Requires active subscription access and students.view permission.
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspaceId" }
+        - { $ref: '#/components/parameters/WorkspaceId' }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
         - { name: search, in: query, schema: { type: string, minLength: 1, maxLength: 100 } }
         - { name: status, in: query, schema: { type: string, enum: [active, inactive, archived] } }
       responses:
-        "200": { $ref: "#/components/responses/StudentList" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/StudentAccessRequired" }
+        '200': { $ref: '#/components/responses/StudentList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/StudentAccessRequired' }
     post:
       summary: Create a workspace student
       operationId: createStudent
       description: Creates a student in the verified workspace context. studentCode is unique only within that workspace.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateStudent" } } } }
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/CreateStudent' } } },
+        }
       responses:
-        "201": { $ref: "#/components/responses/StudentResponse" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/StudentAccessRequired" }
-        "409": { description: A student code already exists in this workspace }
+        '201': { $ref: '#/components/responses/StudentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/StudentAccessRequired' }
+        '409': { description: A student code already exists in this workspace }
   /api/v1/students/{id}:
     get:
       summary: Get a workspace student
       operationId: getStudent
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
-      responses: { "200": { $ref: "#/components/responses/StudentResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/StudentId' },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/StudentResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/StudentAccessRequired' },
+          '404': { description: Student not found in this workspace },
+        }
   /api/v1/students/{id}/enrollments:
     get:
       summary: List a student's batch enrollment history
       operationId: listStudentEnrollments
       description: Returns current and historical batch memberships for a student in the verified workspace.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
-      responses: { "200": { $ref: "#/components/responses/StudentEnrollmentsResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/StudentId' },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/StudentEnrollmentsResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/StudentAccessRequired' },
+          '404': { description: Student not found in this workspace },
+        }
     patch:
       summary: Update a workspace student
       operationId: updateStudent
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateStudent" } } } }
-      responses: { "200": { $ref: "#/components/responses/StudentResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace }, "409": { description: A student code already exists in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/StudentId' },
+        ]
+      requestBody:
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/UpdateStudent' } } },
+        }
+      responses:
+        {
+          '200': { $ref: '#/components/responses/StudentResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/StudentAccessRequired' },
+          '404': { description: Student not found in this workspace },
+          '409': { description: A student code already exists in this workspace },
+        }
     delete:
       summary: Archive a workspace student
       operationId: archiveStudent
       description: Soft-archives the student by setting status to archived; no student record is hard-deleted.
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspaceId" }, { $ref: "#/components/parameters/StudentId" }]
-      responses: { "200": { $ref: "#/components/responses/StudentResponse" }, "400": { $ref: "#/components/responses/ValidationError" }, "401": { $ref: "#/components/responses/Unauthenticated" }, "403": { $ref: "#/components/responses/StudentAccessRequired" }, "404": { description: Student not found in this workspace } }
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspaceId' },
+          { $ref: '#/components/parameters/StudentId' },
+        ]
+      responses:
+        {
+          '200': { $ref: '#/components/responses/StudentResponse' },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/StudentAccessRequired' },
+          '404': { description: Student not found in this workspace },
+        }
   /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
     post:
       summary: Run a Platform Owner subscription lifecycle operation
       operationId: runPlatformSubscriptionOperation
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspacePathId" }
+        - { $ref: '#/components/parameters/WorkspacePathId' }
         - {
             name: operation,
             in: path,
             required: true,
-            schema: { type: string, enum: [lock, unlock, renewal-due, expire, schedule-deletion] }
+            schema: { type: string, enum: [lock, unlock, renewal-due, expire, schedule-deletion] },
           }
       requestBody:
         required: false
@@ -992,24 +1921,24 @@ paths:
               {
                 type: object,
                 additionalProperties: false,
-                properties: { scheduledDeleteAt: { type: string, format: date-time } }
+                properties: { scheduledDeleteAt: { type: string, format: date-time } },
               }
       responses:
-        "200": { description: Lifecycle operation applied or already satisfied }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
-        "404": { description: Workspace or subscription not found }
-        "409": { description: Invalid lifecycle transition }
+        '200': { description: Lifecycle operation applied or already satisfied }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '404': { description: Workspace or subscription not found }
+        '409': { description: Invalid lifecycle transition }
   /api/v1/workspaces/{workspaceId}/entitlement-overrides:
     get:
       summary: List workspace entitlement overrides
       operationId: listWorkspaceEntitlementOverrides
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspacePathId' }]
       responses:
         {
-          "200":
+          '200':
             {
               description: Overrides,
               content:
@@ -1020,64 +1949,86 @@ paths:
                         {
                           type: object,
                           properties:
-                            { data: { type: array, items: { $ref: "#/components/schemas/EntitlementOverride" } } }
-                        }
-                    }
-                }
+                            {
+                              data:
+                                {
+                                  type: array,
+                                  items: { $ref: '#/components/schemas/EntitlementOverride' },
+                                },
+                            },
+                        },
+                    },
+                },
             },
-          "401": { $ref: "#/components/responses/Unauthenticated" },
-          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
-          "404": { description: Workspace not found }
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/PlatformOwnerRequired' },
+          '404': { description: Workspace not found },
         }
     post:
       summary: Create a workspace entitlement override
       operationId: createWorkspaceEntitlementOverride
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }]
+      parameters: [{ $ref: '#/components/parameters/WorkspacePathId' }]
       requestBody:
         {
           required: true,
-          content: { application/json: { schema: { $ref: "#/components/schemas/EntitlementOverrideInput" } } }
+          content:
+            {
+              application/json:
+                { schema: { $ref: '#/components/schemas/EntitlementOverrideInput' } },
+            },
         }
       responses:
         {
-          "201": { description: Override created },
-          "400": { $ref: "#/components/responses/ValidationError" },
-          "401": { $ref: "#/components/responses/Unauthenticated" },
-          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
-          "404": { description: Workspace not found },
-          "409": { description: Override already exists }
+          '201': { description: Override created },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/PlatformOwnerRequired' },
+          '404': { description: Workspace not found },
+          '409': { description: Override already exists },
         }
   /api/v1/workspaces/{workspaceId}/entitlement-overrides/{id}:
     patch:
       summary: Update a workspace entitlement override
       operationId: updateWorkspaceEntitlementOverride
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }, { $ref: "#/components/parameters/OverrideId" }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspacePathId' },
+          { $ref: '#/components/parameters/OverrideId' },
+        ]
       requestBody:
         {
           required: true,
-          content: { application/json: { schema: { $ref: "#/components/schemas/EntitlementOverridePatch" } } }
+          content:
+            {
+              application/json:
+                { schema: { $ref: '#/components/schemas/EntitlementOverridePatch' } },
+            },
         }
       responses:
         {
-          "200": { description: Override updated },
-          "400": { $ref: "#/components/responses/ValidationError" },
-          "401": { $ref: "#/components/responses/Unauthenticated" },
-          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
-          "404": { description: Override not found }
+          '200': { description: Override updated },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/PlatformOwnerRequired' },
+          '404': { description: Override not found },
         }
     delete:
       summary: Remove a workspace entitlement override
       operationId: removeWorkspaceEntitlementOverride
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/WorkspacePathId" }, { $ref: "#/components/parameters/OverrideId" }]
+      parameters:
+        [
+          { $ref: '#/components/parameters/WorkspacePathId' },
+          { $ref: '#/components/parameters/OverrideId' },
+        ]
       responses:
         {
-          "204": { description: Override removed },
-          "401": { $ref: "#/components/responses/Unauthenticated" },
-          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
-          "404": { description: Override not found }
+          '204': { description: Override removed },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/PlatformOwnerRequired' },
+          '404': { description: Override not found },
         }
   /api/v1/plans:
     get:
@@ -1085,7 +2036,7 @@ paths:
       operationId: listPlans
       security: [{ betterAuth: [] }]
       responses:
-        "200":
+        '200':
           {
             description: Plans,
             content:
@@ -1096,32 +2047,36 @@ paths:
                       {
                         type: object,
                         required: [data],
-                        properties: { data: { type: array, items: { $ref: "#/components/schemas/Plan" } } }
-                      }
-                  }
-              }
+                        properties:
+                          { data: { type: array, items: { $ref: '#/components/schemas/Plan' } } },
+                      },
+                  },
+              },
           }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
     post:
       summary: Create a plan
       operationId: createPlan
       security: [{ betterAuth: [] }]
       requestBody:
-        { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PlanInput" } } } }
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/PlanInput' } } },
+        }
       responses:
-        "201": { description: Plan created }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
-        "409": { description: Plan slug already exists }
+        '201': { description: Plan created }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '409': { description: Plan slug already exists }
   /api/v1/public/plans:
     get:
       summary: List active purchasable plans
       operationId: listPublicPlans
       description: Returns only active plans and their public feature defaults. Monetary and quota values are exact minor-unit strings.
       responses:
-        "200":
+        '200':
           description: Active public plans
           content:
             application/json:
@@ -1129,29 +2084,58 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/PublicPlan" } }
+                  data: { type: array, items: { $ref: '#/components/schemas/PublicPlan' } }
   /api/v1/plans/{id}:
     patch:
       summary: Update a plan
       operationId: updatePlan
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/PlanId" }]
+      parameters: [{ $ref: '#/components/parameters/PlanId' }]
       requestBody:
-        { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PlanInput" } } } }
+        {
+          required: true,
+          content: { application/json: { schema: { $ref: '#/components/schemas/PlanInput' } } },
+        }
       responses:
-        "200": { description: Plan updated }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
-        "404": { description: Plan not found }
-        "409": { description: Plan slug already exists }
+        '200': { description: Plan updated }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '404': { description: Plan not found }
+        '409': { description: Plan slug already exists }
+    delete:
+      summary: Delete a plan
+      operationId: deletePlan
+      security: [{ betterAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/PlanId' }]
+      responses:
+        '200':
+          description: Plan deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id, name, slug]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      slug: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '404': { description: Plan not found }
+        '409': { description: Plan in use by subscriptions or payments }
   /api/v1/plans/features:
     get:
       summary: List the Platform feature catalog for plan configuration
       operationId: listPlatformFeatures
       security: [{ betterAuth: [] }]
       responses:
-        "200":
+        '200':
           description: Feature catalog
           content:
             application/json:
@@ -1161,34 +2145,34 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: "#/components/schemas/FeatureCatalogItem" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+                    items: { $ref: '#/components/schemas/FeatureCatalogItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
   /api/v1/plans/{id}/activate:
     post:
       summary: Activate a plan
       operationId: activatePlan
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/PlanId" }]
+      parameters: [{ $ref: '#/components/parameters/PlanId' }]
       responses:
         {
-          "200": { description: Plan activated },
-          "401": { $ref: "#/components/responses/Unauthenticated" },
-          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
-          "404": { description: Plan not found }
+          '200': { description: Plan activated },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/PlatformOwnerRequired' },
+          '404': { description: Plan not found },
         }
   /api/v1/plans/{id}/deactivate:
     post:
       summary: Deactivate a plan without deleting history
       operationId: deactivatePlan
       security: [{ betterAuth: [] }]
-      parameters: [{ $ref: "#/components/parameters/PlanId" }]
+      parameters: [{ $ref: '#/components/parameters/PlanId' }]
       responses:
         {
-          "200": { description: Plan deactivated },
-          "401": { $ref: "#/components/responses/Unauthenticated" },
-          "403": { $ref: "#/components/responses/PlatformOwnerRequired" },
-          "404": { description: Plan not found }
+          '200': { description: Plan deactivated },
+          '401': { $ref: '#/components/responses/Unauthenticated' },
+          '403': { $ref: '#/components/responses/PlatformOwnerRequired' },
+          '404': { description: Plan not found },
         }
   /api/v1/workspaces/{id}:
     get:
@@ -1196,9 +2180,9 @@ paths:
       operationId: getPlatformWorkspaceDetail
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: "#/components/parameters/WorkspacePathId" }
+        - { $ref: '#/components/parameters/WorkspacePathId' }
       responses:
-        "200":
+        '200':
           {
             description: Workspace detail,
             content:
@@ -1209,15 +2193,15 @@ paths:
                       {
                         type: object,
                         required: [data],
-                        properties: { data: { $ref: "#/components/schemas/WorkspaceDetail" } }
-                      }
-                  }
-              }
+                        properties: { data: { $ref: '#/components/schemas/WorkspaceDetail' } },
+                      },
+                  },
+              },
           }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
-        "404": { description: Workspace not found }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '404': { description: Workspace not found }
   /api/v1/workspaces:
     get:
       summary: List workspaces for the Platform Owner
@@ -1226,17 +2210,29 @@ paths:
         - betterAuth: []
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
         - { name: search, in: query, schema: { type: string, minLength: 1, maxLength: 150 } }
         - {
             name: workspaceStatus,
             in: query,
-            schema: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+            schema:
+              {
+                type: string,
+                enum: [pending, active, locked, suspended, scheduled_deletion, deleted],
+              },
           }
         - {
             name: subscriptionStatus,
             in: query,
-            schema: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
+            schema:
+              {
+                type: string,
+                enum: [trial, pending, active, renewal_due, expired, cancelled, suspended],
+              },
           }
         - {
             name: accessStatus,
@@ -1254,18 +2250,16 @@ paths:
                     subscription_expired,
                     locked,
                     scheduled_for_deletion,
-                    suspended
-                  ]
-              }
+                    suspended,
+                  ],
+              },
           }
-        - {
-            name: lifecycleQueue,
-            in: query,
-            description: Restrict the list to locked and scheduled-for-deletion workspaces for the Platform Owner deletion queue.
-            schema: { type: boolean }
-          }
+        - name: lifecycleQueue
+          in: query
+          description: Restrict the list to locked and scheduled-for-deletion workspaces for the Platform Owner deletion queue.
+          schema: { type: boolean }
       responses:
-        "200":
+        '200':
           description: Paginated workspace listing with raw workspace, subscription, and effective access summaries
           content:
             application/json:
@@ -1273,11 +2267,11 @@ paths:
                 type: object
                 required: [data, meta]
                 properties:
-                  data: { type: array, items: { $ref: "#/components/schemas/WorkspaceSummary" } }
-                  meta: { $ref: "#/components/schemas/PaginationMeta" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+                  data: { type: array, items: { $ref: '#/components/schemas/WorkspaceSummary' } }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
   /api/v1/payment-requests:
     post:
       summary: Submit a manual subscription payment
@@ -1285,24 +2279,24 @@ paths:
       security:
         - betterAuth: []
       parameters:
-        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: '#/components/parameters/WorkspaceId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreatePaymentRequest"
+              $ref: '#/components/schemas/CreatePaymentRequest'
       responses:
-        "201":
+        '201':
           description: Pending payment request created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaymentResponse"
-        "400": { description: Validation error, unavailable plan, or amount mismatch }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
-        "409": { $ref: "#/components/responses/DuplicateTransaction" }
+                $ref: '#/components/schemas/PaymentResponse'
+        '400': { description: Validation error, unavailable plan, or amount mismatch }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/WorkspaceMembershipRequired' }
+        '409': { $ref: '#/components/responses/DuplicateTransaction' }
   /api/v1/payment-requests/account:
     post:
       summary: Submit a manual subscription payment for the authenticated account
@@ -1313,23 +2307,23 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CreatePaymentRequest" }
+            schema: { $ref: '#/components/schemas/CreatePaymentRequest' }
       responses:
-        "201":
+        '201':
           description: Pending account payment request created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PaymentResponse" }
-        "400": { description: Validation error, unavailable plan, or amount mismatch }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "409": { $ref: "#/components/responses/DuplicateTransaction" }
+              schema: { $ref: '#/components/schemas/PaymentResponse' }
+        '400': { description: Validation error, unavailable plan, or amount mismatch }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { $ref: '#/components/responses/DuplicateTransaction' }
   /api/v1/payment-requests/account/latest:
     get:
       summary: Get the authenticated account's latest subscription payment
       operationId: getLatestAccountPaymentRequest
       security: [{ betterAuth: [] }]
       responses:
-        "200":
+        '200':
           description: Latest account-level payment request, or null
           content:
             application/json:
@@ -1338,17 +2332,22 @@ paths:
                 required: [data]
                 properties:
                   data:
-                    allOf: [{ $ref: "#/components/schemas/PaymentRequest" }]
+                    allOf: [{ $ref: '#/components/schemas/PaymentRequest' }]
                     nullable: true
-        "401": { $ref: "#/components/responses/Unauthenticated" }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
   /api/v1/payment-requests/pending:
     get:
       summary: List pending payment requests
       operationId: listPendingPaymentRequests
       security:
         - betterAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Case-insensitive search across workspace, plan, sender number, transaction ID, and requester ID.
+          schema: { type: string, minLength: 1, maxLength: 100 }
       responses:
-        "200":
+        '200':
           description: Pending payment requests
           content:
             application/json:
@@ -1358,9 +2357,9 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: "#/components/schemas/PendingPaymentRequest" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+                    items: { $ref: '#/components/schemas/PendingPaymentRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
   /api/v1/payment-requests/revenue-overview:
     get:
       summary: Get Platform Owner payment and revenue aggregates
@@ -1371,10 +2370,15 @@ paths:
         - { name: from, in: query, schema: { type: string, format: date } }
         - { name: to, in: query, schema: { type: string, format: date } }
       responses:
-        "200": { description: Exact payment aggregates, approved revenue by plan, and recent payment activity }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
+        '200':
+          {
+            description: Exact payment aggregates,
+            approved revenue by plan,
+            and recent payment activity,
+          }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
   /api/v1/payment-requests/latest:
     get:
       summary: Get the latest subscription payment for the selected workspace
@@ -1382,9 +2386,9 @@ paths:
       security:
         - betterAuth: []
       parameters:
-        - $ref: "#/components/parameters/WorkspaceId"
+        - $ref: '#/components/parameters/WorkspaceId'
       responses:
-        "200":
+        '200':
           description: Latest subscription payment request, or null when none exists
           content:
             application/json:
@@ -1394,10 +2398,10 @@ paths:
                 properties:
                   data:
                     allOf:
-                      - $ref: "#/components/schemas/PaymentRequest"
+                      - $ref: '#/components/schemas/PaymentRequest'
                     nullable: true
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/WorkspaceMembershipRequired" }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/WorkspaceMembershipRequired' }
   /api/v1/payment-requests/{id}/approve:
     post:
       summary: Approve a pending payment request
@@ -1405,14 +2409,14 @@ paths:
       security:
         - betterAuth: []
       parameters:
-        - $ref: "#/components/parameters/PaymentRequestId"
+        - $ref: '#/components/parameters/PaymentRequestId'
       description: Account-level payments unlock one workspace creation. Workspace renewal payments transactionally create or renew the workspace subscription. Previous current subscriptions are retained as historical rows.
       responses:
-        "200": { $ref: "#/components/responses/ReviewedPayment" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
-        "409": { $ref: "#/components/responses/AlreadyReviewed" }
+        '200': { $ref: '#/components/responses/ReviewedPayment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '409': { $ref: '#/components/responses/AlreadyReviewed' }
   /api/v1/payment-requests/{id}/reject:
     post:
       summary: Reject a pending payment request
@@ -1420,7 +2424,7 @@ paths:
       security:
         - betterAuth: []
       parameters:
-        - $ref: "#/components/parameters/PaymentRequestId"
+        - $ref: '#/components/parameters/PaymentRequestId'
       requestBody:
         required: true
         content:
@@ -1432,11 +2436,11 @@ paths:
               properties:
                 rejectionReason: { type: string, minLength: 1, maxLength: 500 }
       responses:
-        "200": { $ref: "#/components/responses/ReviewedPayment" }
-        "400": { $ref: "#/components/responses/ValidationError" }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/PlatformOwnerRequired" }
-        "409": { $ref: "#/components/responses/AlreadyReviewed" }
+        '200': { $ref: '#/components/responses/ReviewedPayment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PlatformOwnerRequired' }
+        '409': { $ref: '#/components/responses/AlreadyReviewed' }
 components:
   securitySchemes:
     betterAuth:
@@ -1460,7 +2464,7 @@ components:
     FeeStatusFilter:
       name: status
       in: query
-      schema: { $ref: "#/components/schemas/StudentFeeStatus" }
+      schema: { $ref: '#/components/schemas/StudentFeeStatus' }
     FeePage:
       name: page
       in: query
@@ -1538,14 +2542,14 @@ components:
             required: [studentId, status]
             properties:
               studentId: { type: string, format: uuid }
-              status: { $ref: "#/components/schemas/AttendanceRecordStatus" }
+              status: { $ref: '#/components/schemas/AttendanceRecordStatus' }
     AttendanceRecord:
       type: object
       required: [id, studentId, status, student, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         studentId: { type: string, format: uuid }
-        status: { $ref: "#/components/schemas/AttendanceRecordStatus" }
+        status: { $ref: '#/components/schemas/AttendanceRecordStatus' }
         student:
           type: object
           required: [id, studentCode, fullName]
@@ -1563,7 +2567,7 @@ components:
         id: { type: string, format: uuid }
         batchId: { type: string, format: uuid }
         sessionDate: { type: string, format: date }
-        status: { $ref: "#/components/schemas/AttendanceSessionStatus" }
+        status: { $ref: '#/components/schemas/AttendanceSessionStatus' }
         batch:
           type: object
           required: [id, name]
@@ -1572,14 +2576,14 @@ components:
             name: { type: string }
         records:
           type: array
-          items: { $ref: "#/components/schemas/AttendanceRecord" }
+          items: { $ref: '#/components/schemas/AttendanceRecord' }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     AttendanceSessionResponse:
       type: object
       required: [data]
       properties:
-        data: { $ref: "#/components/schemas/AttendanceSession" }
+        data: { $ref: '#/components/schemas/AttendanceSession' }
     AttendanceSessionListResponse:
       type: object
       required: [data, meta]
@@ -1588,12 +2592,24 @@ components:
           type: array
           items:
             type: object
-            required: [id, batchId, sessionDate, status, batch, rosterCount, presentCount, absentCount, createdAt, updatedAt]
+            required:
+              [
+                id,
+                batchId,
+                sessionDate,
+                status,
+                batch,
+                rosterCount,
+                presentCount,
+                absentCount,
+                createdAt,
+                updatedAt,
+              ]
             properties:
               id: { type: string, format: uuid }
               batchId: { type: string, format: uuid }
               sessionDate: { type: string, format: date }
-              status: { $ref: "#/components/schemas/AttendanceSessionStatus" }
+              status: { $ref: '#/components/schemas/AttendanceSessionStatus' }
               batch:
                 type: object
                 required: [id, name]
@@ -1624,7 +2640,7 @@ components:
       additionalProperties: false
       required: [feeMonth]
       properties:
-        feeMonth: { $ref: "#/components/schemas/FeeMonth" }
+        feeMonth: { $ref: '#/components/schemas/FeeMonth' }
     BdtFeeAmount:
       type: string
       pattern: '^\d{1,17}\.\d{2}$'
@@ -1640,23 +2656,38 @@ components:
         GraceDate itself is inclusive. Status is derived on reads; stored status is the generation/write-time state.
     StudentFee:
       type: object
-      required: [id, studentId, enrollmentId, feeMonth, expectedAmount, discountAmount, paidAmount, dueAmount, status, dueDate, graceDate, createdAt, updatedAt]
+      required:
+        [
+          id,
+          studentId,
+          enrollmentId,
+          feeMonth,
+          expectedAmount,
+          discountAmount,
+          paidAmount,
+          dueAmount,
+          status,
+          dueDate,
+          graceDate,
+          createdAt,
+          updatedAt,
+        ]
       properties:
         id: { type: string, format: uuid }
         studentId: { type: string, format: uuid }
         enrollmentId: { type: string, format: uuid }
-        feeMonth: { $ref: "#/components/schemas/FeeMonth" }
+        feeMonth: { $ref: '#/components/schemas/FeeMonth' }
         expectedAmount:
-          allOf: [{ $ref: "#/components/schemas/BdtFeeAmount" }]
+          allOf: [{ $ref: '#/components/schemas/BdtFeeAmount' }]
           description: Gross historical fee before discount, from enrollment override or batch monthly fee.
         discountAmount:
-          allOf: [{ $ref: "#/components/schemas/BdtFeeAmount" }]
+          allOf: [{ $ref: '#/components/schemas/BdtFeeAmount' }]
           description: Applied enrollment discount, capped at expectedAmount; snapshot preserved.
-        paidAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
+        paidAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
         dueAmount:
-          allOf: [{ $ref: "#/components/schemas/BdtFeeAmount" }]
+          allOf: [{ $ref: '#/components/schemas/BdtFeeAmount' }]
           description: PostgreSQL generated amount max(expectedAmount - discountAmount - paidAmount, 0). Overpayments never create negative dues.
-        status: { $ref: "#/components/schemas/StudentFeeStatus" }
+        status: { $ref: '#/components/schemas/StudentFeeStatus' }
         dueDate:
           type: string
           format: date
@@ -1671,14 +2702,14 @@ components:
       type: object
       required: [data]
       properties:
-        data: { $ref: "#/components/schemas/StudentFee" }
+        data: { $ref: '#/components/schemas/StudentFee' }
     StudentFeeListResponse:
       type: object
       required: [data, meta]
       properties:
         data:
           type: array
-          items: { $ref: "#/components/schemas/StudentFee" }
+          items: { $ref: '#/components/schemas/StudentFee' }
         meta:
           type: object
           required: [page, limit, total, totalPages]
@@ -1692,13 +2723,24 @@ components:
       enum: [cash, bkash, nagad, rocket, other]
     StudentPayment:
       type: object
-      required: [id, studentId, studentFeeId, amount, paymentMethod, paymentDate, receiptNumber, createdAt, updatedAt]
+      required:
+        [
+          id,
+          studentId,
+          studentFeeId,
+          amount,
+          paymentMethod,
+          paymentDate,
+          receiptNumber,
+          createdAt,
+          updatedAt,
+        ]
       properties:
         id: { type: string, format: uuid }
         studentId: { type: string, format: uuid }
         studentFeeId: { type: string, format: uuid }
-        amount: { $ref: "#/components/schemas/BdtFeeAmount" }
-        paymentMethod: { $ref: "#/components/schemas/StudentPaymentMethod" }
+        amount: { $ref: '#/components/schemas/BdtFeeAmount' }
+        paymentMethod: { $ref: '#/components/schemas/StudentPaymentMethod' }
         paymentDate: { type: string, format: date }
         receiptNumber: { type: string }
         note: { type: string, nullable: true }
@@ -1715,9 +2757,19 @@ components:
           pattern: '^\d+(\.\d{1,2})?$'
           example: '1000.00'
           description: Positive payment amount in BDT taka (up to 2 decimal places).
-        paymentMethod: { $ref: "#/components/schemas/StudentPaymentMethod" }
-        paymentDate: { type: string, format: date, description: Optional payment date (defaults to current date) }
-        receiptNumber: { type: string, maxLength: 50, description: Optional custom receipt number; auto-generated if omitted }
+        paymentMethod: { $ref: '#/components/schemas/StudentPaymentMethod' }
+        paymentDate:
+          {
+            type: string,
+            format: date,
+            description: Optional payment date (defaults to current date),
+          }
+        receiptNumber:
+          {
+            type: string,
+            maxLength: 50,
+            description: Optional custom receipt number; auto-generated if omitted,
+          }
         note: { type: string, maxLength: 500, description: Optional payment note }
     RecordStudentPaymentResponse:
       type: object
@@ -1727,18 +2779,19 @@ components:
           type: object
           required: [payment, fee, student]
           properties:
-            payment: { $ref: "#/components/schemas/StudentPayment" }
+            payment: { $ref: '#/components/schemas/StudentPayment' }
             fee:
               type: object
-              required: [id, feeMonth, expectedAmount, discountAmount, paidAmount, dueAmount, status]
+              required:
+                [id, feeMonth, expectedAmount, discountAmount, paidAmount, dueAmount, status]
               properties:
                 id: { type: string, format: uuid }
-                feeMonth: { $ref: "#/components/schemas/FeeMonth" }
-                expectedAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                discountAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                paidAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                dueAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                status: { $ref: "#/components/schemas/StudentFeeStatus" }
+                feeMonth: { $ref: '#/components/schemas/FeeMonth' }
+                expectedAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                discountAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                paidAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                dueAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                status: { $ref: '#/components/schemas/StudentFeeStatus' }
             student:
               type: object
               required: [id, fullName, studentCode]
@@ -1752,14 +2805,14 @@ components:
       properties:
         data:
           type: array
-          items: { $ref: "#/components/schemas/StudentPayment" }
+          items: { $ref: '#/components/schemas/StudentPayment' }
     StudentPaymentHistoryResponse:
       type: object
       required: [data, meta]
       properties:
         data:
           type: array
-          items: { $ref: "#/components/schemas/StudentPayment" }
+          items: { $ref: '#/components/schemas/StudentPayment' }
         meta:
           type: object
           required: [page, limit, total, totalPages]
@@ -1774,7 +2827,7 @@ components:
       properties:
         data:
           allOf:
-            - { $ref: "#/components/schemas/StudentPayment" }
+            - { $ref: '#/components/schemas/StudentPayment' }
             - type: object
               properties:
                 fee:
@@ -1782,12 +2835,12 @@ components:
                   nullable: true
                   properties:
                     id: { type: string, format: uuid }
-                    feeMonth: { $ref: "#/components/schemas/FeeMonth" }
-                    expectedAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                    discountAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                    paidAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                    dueAmount: { $ref: "#/components/schemas/BdtFeeAmount" }
-                    status: { $ref: "#/components/schemas/StudentFeeStatus" }
+                    feeMonth: { $ref: '#/components/schemas/FeeMonth' }
+                    expectedAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                    discountAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                    paidAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                    dueAmount: { $ref: '#/components/schemas/BdtFeeAmount' }
+                    status: { $ref: '#/components/schemas/StudentFeeStatus' }
                 student:
                   type: object
                   nullable: true
@@ -1805,10 +2858,27 @@ components:
         classLevelId: { type: string, format: uuid }
         mediumId: { type: string, format: uuid, nullable: true }
         academicGroupId: { type: string, format: uuid, nullable: true }
-        startDate: { type: string, format: date, nullable: true, description: Batch calendar start date }
-        classDays: { type: array, minItems: 1, maxItems: 7, uniqueItems: true, items: { type: integer, minimum: 0, maximum: 6 }, description: Weekday numbers where Sunday=0 and Saturday=6 }
-        monthlyFee: { oneOf: [{ type: number, minimum: 0 }, { type: string, pattern: '^\d+(?:\.\d{1,2})?$' }], description: Monthly fee in BDT Taka (e.g. 2000 or "2000.50") }
-        monthlyFeeMinor: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\d+$' }], description: Monthly fee in BDT poisha (e.g. 200000) }
+        startDate:
+          { type: string, format: date, nullable: true, description: Batch calendar start date }
+        classDays:
+          {
+            type: array,
+            minItems: 1,
+            maxItems: 7,
+            uniqueItems: true,
+            items: { type: integer, minimum: 0, maximum: 6 },
+            description: Weekday numbers where Sunday=0 and Saturday=6,
+          }
+        monthlyFee:
+          {
+            oneOf: [{ type: number, minimum: 0 }, { type: string, pattern: '^\d+(?:\.\d{1,2})?$' }],
+            description: Monthly fee in BDT Taka (e.g. 2000 or "2000.50"),
+          }
+        monthlyFeeMinor:
+          {
+            oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\d+$' }],
+            description: Monthly fee in BDT poisha (e.g. 200000),
+          }
         status: { type: string, enum: [active, inactive, archived] }
     UpdateBatch:
       type: object
@@ -1820,14 +2890,42 @@ components:
         classLevelId: { type: string, format: uuid }
         mediumId: { type: string, format: uuid, nullable: true }
         academicGroupId: { type: string, format: uuid, nullable: true }
-        startDate: { type: string, format: date, nullable: true, description: Batch calendar start date }
-        classDays: { type: array, minItems: 1, maxItems: 7, uniqueItems: true, items: { type: integer, minimum: 0, maximum: 6 }, description: Weekday numbers where Sunday=0 and Saturday=6 }
-        monthlyFee: { oneOf: [{ type: number, minimum: 0 }, { type: string, pattern: '^\d+(?:\.\d{1,2})?$' }], description: Monthly fee in BDT Taka (e.g. 2000 or "2000.50") }
-        monthlyFeeMinor: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\d+$' }], description: Monthly fee in BDT poisha (e.g. 200000) }
+        startDate:
+          { type: string, format: date, nullable: true, description: Batch calendar start date }
+        classDays:
+          {
+            type: array,
+            minItems: 1,
+            maxItems: 7,
+            uniqueItems: true,
+            items: { type: integer, minimum: 0, maximum: 6 },
+            description: Weekday numbers where Sunday=0 and Saturday=6,
+          }
+        monthlyFee:
+          {
+            oneOf: [{ type: number, minimum: 0 }, { type: string, pattern: '^\d+(?:\.\d{1,2})?$' }],
+            description: Monthly fee in BDT Taka (e.g. 2000 or "2000.50"),
+          }
+        monthlyFeeMinor:
+          {
+            oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\d+$' }],
+            description: Monthly fee in BDT poisha (e.g. 200000),
+          }
         status: { type: string, enum: [active, inactive] }
     Batch:
       type: object
-      required: [id, name, classLevelId, classDays, monthlyFeeMinor, status, createdAt, updatedAt, classLevel]
+      required:
+        [
+          id,
+          name,
+          classLevelId,
+          classDays,
+          monthlyFeeMinor,
+          status,
+          createdAt,
+          updatedAt,
+          classLevel,
+        ]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -1835,15 +2933,35 @@ components:
         mediumId: { type: string, format: uuid, nullable: true }
         academicGroupId: { type: string, format: uuid, nullable: true }
         startDate: { type: string, format: date, nullable: true }
-        classDays: { type: array, items: { type: integer, minimum: 0, maximum: 6 }, description: Weekday numbers where Sunday=0 and Saturday=6 }
+        classDays:
+          {
+            type: array,
+            items: { type: integer, minimum: 0, maximum: 6 },
+            description: Weekday numbers where Sunday=0 and Saturday=6,
+          }
         monthlyFee: { type: string, description: Monthly fee in BDT Taka }
         monthlyFeeMinor: { type: string, pattern: '^\d+$', description: Monthly fee in BDT poisha }
         status: { type: string, enum: [active, inactive, archived] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-        classLevel: { type: object, required: [id, name], properties: { id: { type: string, format: uuid }, name: { type: string } } }
-        medium: { type: object, nullable: true, properties: { id: { type: string, format: uuid }, name: { type: string } } }
-        academicGroup: { type: object, nullable: true, properties: { id: { type: string, format: uuid }, name: { type: string } } }
+        classLevel:
+          {
+            type: object,
+            required: [id, name],
+            properties: { id: { type: string, format: uuid }, name: { type: string } },
+          }
+        medium:
+          {
+            type: object,
+            nullable: true,
+            properties: { id: { type: string, format: uuid }, name: { type: string } },
+          }
+        academicGroup:
+          {
+            type: object,
+            nullable: true,
+            properties: { id: { type: string, format: uuid }, name: { type: string } },
+          }
     AssignBatchTeacher:
       type: object
       additionalProperties: false
@@ -1903,7 +3021,7 @@ components:
         status: { type: string, enum: [active, inactive, archived] }
         notes: { type: string, nullable: true, maxLength: 5000 }
     Student:
-      allOf: [{ $ref: "#/components/schemas/CreateStudent" }]
+      allOf: [{ $ref: '#/components/schemas/CreateStudent' }]
       required: [id, studentCode, fullName, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
@@ -1913,8 +3031,10 @@ components:
       type: object
       required: [step, workspaceStatus, paymentPending, access]
       properties:
-        step: { type: string, enum: [workspace_created, subscription_required, payment_pending, ready] }
-        workspaceStatus: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+        step:
+          { type: string, enum: [workspace_created, subscription_required, payment_pending, ready] }
+        workspaceStatus:
+          { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
         paymentPending: { type: boolean }
         access:
           type: object
@@ -1925,7 +3045,17 @@ components:
               {
                 type: string,
                 enum:
-                  [verification_pending, payment_pending, trial, active, renewal_due, subscription_expired, locked, scheduled_for_deletion, suspended]
+                  [
+                    verification_pending,
+                    payment_pending,
+                    trial,
+                    active,
+                    renewal_due,
+                    subscription_expired,
+                    locked,
+                    scheduled_for_deletion,
+                    suspended,
+                  ],
               }
             reason: { type: string }
     CreateWorkspaceOnboard:
@@ -1934,7 +3064,7 @@ components:
       required: [name, slug]
       properties:
         name: { type: string, minLength: 1, maxLength: 150 }
-        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 100 }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 100 }
         phone: { type: string, pattern: "^(?:\\+8801\\d{9}|01\\d{9})$" }
         email: { type: string, format: email, maxLength: 255 }
         address: { type: string, minLength: 1, maxLength: 2000 }
@@ -1957,21 +3087,25 @@ components:
       properties:
         featureKey: { type: string, minLength: 1, maxLength: 100 }
         enabledOverride: { type: boolean, nullable: true }
-        limitOverride: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }], nullable: true }
+        limitOverride:
+          {
+            oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }],
+            nullable: true,
+          }
         reason: { type: string, minLength: 1, maxLength: 500 }
         expiresAt: { type: string, format: date-time, nullable: true }
     EntitlementOverridePatch:
-      allOf: [{ $ref: "#/components/schemas/EntitlementOverrideInput" }]
+      allOf: [{ $ref: '#/components/schemas/EntitlementOverrideInput' }]
       description: Any subset of override fields.
     EntitlementOverride:
-      allOf: [{ $ref: "#/components/schemas/EntitlementOverrideInput" }]
+      allOf: [{ $ref: '#/components/schemas/EntitlementOverrideInput' }]
       properties:
         {
           id: { type: string, format: uuid },
           workspaceId: { type: string, format: uuid },
           limitOverride: { type: string, nullable: true },
           createdAt: { type: string, format: date-time },
-          updatedAt: { type: string, format: date-time }
+          updatedAt: { type: string, format: date-time },
         }
     PlanInput:
       type: object
@@ -1979,7 +3113,7 @@ components:
       required: [name, slug, priceMinor, durationDays, trialDays]
       properties:
         name: { type: string, minLength: 1, maxLength: 80 }
-        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$' }
         priceMinor: { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }] }
         durationDays: { type: integer, minimum: 0 }
         trialDays: { type: integer, minimum: 0 }
@@ -1996,21 +3130,24 @@ components:
                     featureKey: { type: string },
                     enabled: { type: boolean },
                     limitValue:
-                      { oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }], nullable: true }
+                      {
+                        oneOf: [{ type: integer, minimum: 0 }, { type: string, pattern: '^\\d+$' }],
+                        nullable: true,
+                      },
                   },
-                additionalProperties: false
-              }
+                additionalProperties: false,
+              },
           }
     Plan:
       allOf:
-        - $ref: "#/components/schemas/PlanInput"
+        - $ref: '#/components/schemas/PlanInput'
         - type: object
           properties:
             {
               id: { type: string, format: uuid },
               priceMinor: { type: string },
               createdAt: { type: string, format: date-time },
-              updatedAt: { type: string, format: date-time }
+              updatedAt: { type: string, format: date-time },
             }
     FeatureCatalogItem:
       type: object
@@ -2049,7 +3186,15 @@ components:
           additionalProperties: { type: string, nullable: true, pattern: '^\d+$' }
     WorkspaceDetail:
       type: object
-      required: [workspace, subscription, access, subscriptionHistory, recentPayments, activeEntitlementOverrides]
+      required:
+        [
+          workspace,
+          subscription,
+          access,
+          subscriptionHistory,
+          recentPayments,
+          activeEntitlementOverrides,
+        ]
       properties:
         workspace:
           type: object
@@ -2061,7 +3206,11 @@ components:
             phone: { type: string, nullable: true }
             email: { type: string, format: email, nullable: true }
             address: { type: string, nullable: true }
-            status: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+            status:
+              {
+                type: string,
+                enum: [pending, active, locked, suspended, scheduled_deletion, deleted],
+              }
             createdAt: { type: string, format: date-time }
             updatedAt: { type: string, format: date-time }
             activatedAt: { type: string, format: date-time, nullable: true }
@@ -2072,10 +3221,11 @@ components:
           {
             type: object,
             required: [allowed, status, reason],
-            properties: { allowed: { type: boolean }, status: { type: string }, reason: { type: string } }
+            properties:
+              { allowed: { type: boolean }, status: { type: string }, reason: { type: string } },
           }
         subscriptionHistory: { type: array, items: { type: object } }
-        recentPayments: { type: array, items: { $ref: "#/components/schemas/PaymentRequest" } }
+        recentPayments: { type: array, items: { $ref: '#/components/schemas/PaymentRequest' } }
         activeEntitlementOverrides: { type: array, items: { type: object } }
     PaginationMeta:
       type: object
@@ -2092,7 +3242,8 @@ components:
         id: { type: string, format: uuid }
         name: { type: string, nullable: true }
         slug: { type: string, nullable: true }
-        workspaceStatus: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+        workspaceStatus:
+          { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
         createdAt: { type: string, format: date-time }
         lockedAt: { type: string, format: date-time, nullable: true }
         scheduledDeleteAt: { type: string, format: date-time, nullable: true }
@@ -2101,7 +3252,11 @@ components:
           type: object
           properties:
             id: { type: string, format: uuid }
-            status: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
+            status:
+              {
+                type: string,
+                enum: [trial, pending, active, renewal_due, expired, cancelled, suspended],
+              }
             startsAt: { type: string, format: date-time, nullable: true }
             expiresAt: { type: string, format: date-time, nullable: true }
             trialEndsAt: { type: string, format: date-time, nullable: true }
@@ -2109,7 +3264,12 @@ components:
               {
                 type: object,
                 nullable: true,
-                properties: { id: { type: string, format: uuid }, name: { type: string }, slug: { type: string } }
+                properties:
+                  {
+                    id: { type: string, format: uuid },
+                    name: { type: string },
+                    slug: { type: string },
+                  },
               }
         access:
           type: object
@@ -2120,7 +3280,8 @@ components:
             reason: { type: string }
     WorkspaceDashboardSummary:
       type: object
-      required: [workspace, access, subscription, memberCount, entitlements, latestPayment]
+      required:
+        [workspace, access, subscription, memberCount, entitlements, latestPayment, operational]
       properties:
         workspace:
           type: object
@@ -2128,17 +3289,36 @@ components:
           properties:
             id: { type: string, format: uuid }
             name: { type: string, nullable: true }
-            status: { type: string, enum: [pending, active, locked, suspended, scheduled_deletion, deleted] }
+            status:
+              {
+                type: string,
+                enum: [pending, active, locked, suspended, scheduled_deletion, deleted],
+              }
         access:
           type: object
           required: [allowed, status, reason]
           properties:
             allowed: { type: boolean }
-            status: { type: string, enum: [verification_pending, payment_pending, trial, active, renewal_due, subscription_expired, locked, scheduled_for_deletion, suspended] }
+            status:
+              {
+                type: string,
+                enum:
+                  [
+                    verification_pending,
+                    payment_pending,
+                    trial,
+                    active,
+                    renewal_due,
+                    subscription_expired,
+                    locked,
+                    scheduled_for_deletion,
+                    suspended,
+                  ],
+              }
             reason: { type: string }
         subscription:
           nullable: true
-          allOf: [{ $ref: "#/components/schemas/SubscriptionDashboardStatus" }]
+          allOf: [{ $ref: '#/components/schemas/SubscriptionDashboardStatus' }]
         memberCount: { type: integer, minimum: 0 }
         entitlements:
           type: array
@@ -2148,15 +3328,59 @@ components:
             properties:
               key: { type: string }
               enabled: { type: boolean }
-              limit: { type: string, nullable: true, description: Integer limit serialized as a string. }
+              limit:
+                { type: string, nullable: true, description: Integer limit serialized as a string. }
         latestPayment:
           nullable: true
-          allOf: [{ $ref: "#/components/schemas/PaymentDashboardStatus" }]
+          allOf: [{ $ref: '#/components/schemas/PaymentDashboardStatus' }]
+        operational:
+          type: object
+          required: [activeStudents, activeBatches, activeTeachers, today, monthlyFinance]
+          properties:
+            activeStudents: { type: integer, minimum: 0 }
+            activeBatches: { type: integer, minimum: 0 }
+            activeTeachers: { type: integer, minimum: 0 }
+            today:
+              type: object
+              required: [date, scheduledBatchCount, attendance]
+              properties:
+                date: { type: string, format: date, description: Current date in Asia/Dhaka. }
+                scheduledBatchCount: { type: integer, minimum: 0 }
+                attendance:
+                  type: object
+                  required:
+                    [
+                      sessionCount,
+                      finalizedSessionCount,
+                      draftSessionCount,
+                      presentCount,
+                      absentCount,
+                    ]
+                  properties:
+                    sessionCount: { type: integer, minimum: 0 }
+                    finalizedSessionCount: { type: integer, minimum: 0 }
+                    draftSessionCount: { type: integer, minimum: 0 }
+                    presentCount: { type: integer, minimum: 0 }
+                    absentCount: { type: integer, minimum: 0 }
+            monthlyFinance:
+              type: object
+              required: [month, collectedFees, outstandingFees, paidSalaries, expenses, netCashFlow]
+              properties:
+                month: { type: string, format: date }
+                collectedFees: { type: string, pattern: '^\\d+\\.\\d{2}$' }
+                outstandingFees: { type: string, pattern: '^\\d+\\.\\d{2}$' }
+                paidSalaries: { type: string, pattern: '^\\d+\\.\\d{2}$' }
+                expenses: { type: string, pattern: '^\\d+\\.\\d{2}$' }
+                netCashFlow: { type: string, pattern: '^-?\\d+\\.\\d{2}$' }
     SubscriptionDashboardStatus:
       type: object
       required: [status, planName, startsAt, expiresAt, trialEndsAt, renewalDueAt]
       properties:
-        status: { type: string, enum: [trial, pending, active, renewal_due, expired, cancelled, suspended] }
+        status:
+          {
+            type: string,
+            enum: [trial, pending, active, renewal_due, expired, cancelled, suspended],
+          }
         planName: { type: string, nullable: true }
         startsAt: { type: string, format: date-time, nullable: true }
         expiresAt: { type: string, format: date-time, nullable: true }
@@ -2195,7 +3419,19 @@ components:
         createdAt: { type: string, format: date-time }
     PendingPaymentRequest:
       type: object
-      required: [id, purpose, amountMinor, paymentMethod, senderNumber, transactionId, status, createdAt, workspace, plan]
+      required:
+        [
+          id,
+          purpose,
+          amountMinor,
+          paymentMethod,
+          senderNumber,
+          transactionId,
+          status,
+          createdAt,
+          workspace,
+          plan,
+        ]
       properties:
         id: { type: string, format: uuid }
         purpose: { type: string, enum: [subscription, sms_credit] }
@@ -2224,7 +3460,7 @@ components:
       type: object
       required: [data]
       properties:
-        data: { $ref: "#/components/schemas/PaymentRequest" }
+        data: { $ref: '#/components/schemas/PaymentRequest' }
     EnrollStudent:
       type: object
       required: [studentId]
@@ -2242,7 +3478,8 @@ components:
         status: { type: string, enum: [active, inactive, completed, cancelled, archived] }
     BatchEnrollment:
       type: object
-      required: [id, studentId, studentCode, name, joinedAt, feeOverrideMinor, discountMinor, status]
+      required:
+        [id, studentId, studentCode, name, joinedAt, feeOverrideMinor, discountMinor, status]
       properties:
         id: { type: string, format: uuid }
         studentId: { type: string, format: uuid }
@@ -2267,35 +3504,140 @@ components:
   responses:
     BatchEnrollmentResponse:
       description: Student enrollment detail
-      content: { application/json: { schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/BatchEnrollment" } } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data],
+                  properties: { data: { $ref: '#/components/schemas/BatchEnrollment' } },
+                },
+            },
+        }
     BatchEnrollmentsResponse:
       description: Students enrolled in a batch
-      content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/BatchEnrollment" } } } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data],
+                  properties:
+                    {
+                      data:
+                        { type: array, items: { $ref: '#/components/schemas/BatchEnrollment' } },
+                    },
+                },
+            },
+        }
     StudentEnrollmentsResponse:
       description: Current and historical batch memberships for a student
-      content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/StudentEnrollment" } } } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data],
+                  properties:
+                    {
+                      data:
+                        { type: array, items: { $ref: '#/components/schemas/StudentEnrollment' } },
+                    },
+                },
+            },
+        }
     BatchResponse:
       description: Batch profile with academic labels
-      content: { application/json: { schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/Batch" } } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data],
+                  properties: { data: { $ref: '#/components/schemas/Batch' } },
+                },
+            },
+        }
     BatchTeachersResponse:
       description: Teachers assigned to a batch
-      content: { application/json: { schema: { type: object, required: [data], properties: { data: { type: array, items: { $ref: "#/components/schemas/BatchTeacher" } } } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data],
+                  properties:
+                    { data: { type: array, items: { $ref: '#/components/schemas/BatchTeacher' } } },
+                },
+            },
+        }
     BatchList:
       description: Paginated workspace batches
-      content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/Batch" } }, meta: { $ref: "#/components/schemas/PaginationMeta" } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data, meta],
+                  properties:
+                    {
+                      data: { type: array, items: { $ref: '#/components/schemas/Batch' } },
+                      meta: { $ref: '#/components/schemas/PaginationMeta' },
+                    },
+                },
+            },
+        }
     BatchAccessRequired:
       description: Workspace membership, active subscription, or required batch permission is missing
     StudentResponse:
       description: Student record
-      content: { application/json: { schema: { type: object, required: [data], properties: { data: { $ref: "#/components/schemas/Student" } } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data],
+                  properties: { data: { $ref: '#/components/schemas/Student' } },
+                },
+            },
+        }
     StudentList:
       description: Paginated workspace students
-      content: { application/json: { schema: { type: object, required: [data, meta], properties: { data: { type: array, items: { $ref: "#/components/schemas/Student" } }, meta: { $ref: "#/components/schemas/PaginationMeta" } } } }
+      content:
+        {
+          application/json:
+            {
+              schema:
+                {
+                  type: object,
+                  required: [data, meta],
+                  properties:
+                    {
+                      data: { type: array, items: { $ref: '#/components/schemas/Student' } },
+                      meta: { $ref: '#/components/schemas/PaginationMeta' },
+                    },
+                },
+            },
+        }
     StudentAccessRequired:
       description: Workspace membership, active subscription, or required student permission is missing
     ReviewedPayment:
       description: Payment request reviewed
-      content: { application/json: { schema: { $ref: "#/components/schemas/PaymentResponse" } } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/PaymentResponse' } } }
     ValidationError:
       description: Invalid request
     Unauthenticated:

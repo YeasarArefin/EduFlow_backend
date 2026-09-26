@@ -68,6 +68,16 @@ export const workspaceSettings = pgTable(
     absenceEmailRecipient: varchar('absence_email_recipient', { length: 20 })
       .notNull()
       .default('guardian'),
+    absenceSmsEnabled: boolean('absence_sms_enabled').notNull().default(false),
+    noticeEmailEnabled: boolean('notice_email_enabled').notNull().default(true),
+    noticeSmsEnabled: boolean('notice_sms_enabled').notNull().default(false),
+    noticeRecipient: varchar('notice_recipient', { length: 20 }).notNull().default('both'),
+    paymentSmsEnabled: boolean('payment_sms_enabled').notNull().default(false),
+    reminderSmsEnabled: boolean('reminder_sms_enabled').notNull().default(false),
+    overdueSmsEnabled: boolean('overdue_sms_enabled').notNull().default(false),
+    paymentReminderDaysBefore: smallint('payment_reminder_days_before').notNull().default(3),
+    graceReminderDaysAfter: smallint('grace_reminder_days_after').notNull().default(0),
+    overdueWarningDaysAfter: smallint('overdue_warning_days_after').notNull().default(1),
     smsDefaultSenderId: varchar('sms_default_sender_id', { length: 100 }),
     paymentConfirmationEnabled: boolean('payment_confirmation_enabled').notNull().default(true),
     paymentReminderEnabled: boolean('payment_reminder_enabled').notNull().default(true),

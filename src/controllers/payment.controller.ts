@@ -10,6 +10,7 @@ import { getRevenueOverview as getRevenueOverviewService } from '../services/rev
 import {
   createPaymentBodySchema,
   paymentRequestIdSchema,
+  pendingPaymentQuerySchema,
   rejectionBodySchema,
   revenueOverviewQuerySchema,
 } from '../validation/payment.validation';
@@ -130,10 +131,17 @@ export const getLatestAccountPayment: RequestHandler = async (req, res, next) =>
   }
 };
 
-export const listPendingPayments: RequestHandler = async (_req, res, next) => {
+export const listPendingPayments: RequestHandler = async (req, res, next) => {
+  const parsed = pendingPaymentQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Request validation failed.' },
+    });
+    return;
+  }
   try {
     res.status(200).json({
-      data: (await listPendingPaymentRequests()).map(mapPayment),
+      data: (await listPendingPaymentRequests(parsed.data.search)).map(mapPayment),
     });
   } catch (error) {
     next(error);

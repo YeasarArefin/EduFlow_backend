@@ -132,6 +132,17 @@ describe('Platform Owner payment review API', () => {
     );
   });
 
+  it('searches pending requests on the server for Platform Owner', async () => {
+    const response = await request(app)
+      .get(`/api/v1/payment-requests/pending?search=${encodeURIComponent(`review-${suffix}`)}`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+
+    expect(response.body.data).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: paymentId })])
+    );
+  });
+
   it('denies normal workspace users', async () => {
     await request(app)
       .get('/api/v1/payment-requests/pending')

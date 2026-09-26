@@ -20,7 +20,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    minPasswordLength: 12,
+    minPasswordLength: 8,
     maxPasswordLength: 128,
   },
   emailVerification: {
@@ -30,7 +30,9 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       const props = { recipientName: user.name, verificationUrl: url };
       const htmlContent = await render(createElement(EmailVerificationEmail, props));
-      const textContent = await render(createElement(EmailVerificationEmail, props), { plainText: true });
+      const textContent = await render(createElement(EmailVerificationEmail, props), {
+        plainText: true,
+      });
       await sendBrevoEmail({
         to: { email: user.email, name: user.name },
         subject: 'Verify your EduFlow email address',

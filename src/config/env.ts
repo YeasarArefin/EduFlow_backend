@@ -25,10 +25,18 @@ const envSchema = z
       });
     }
     if (value.NODE_ENV === 'production' && !value.BREVO_API_KEY) {
-      ctx.addIssue({ code: 'custom', message: 'BREVO_API_KEY is required in production.', path: ['BREVO_API_KEY'] });
+      ctx.addIssue({
+        code: 'custom',
+        message: 'BREVO_API_KEY is required in production.',
+        path: ['BREVO_API_KEY'],
+      });
     }
     if (value.NODE_ENV === 'production' && !value.BREVO_SENDER_EMAIL) {
-      ctx.addIssue({ code: 'custom', message: 'BREVO_SENDER_EMAIL is required in production.', path: ['BREVO_SENDER_EMAIL'] });
+      ctx.addIssue({
+        code: 'custom',
+        message: 'BREVO_SENDER_EMAIL is required in production.',
+        path: ['BREVO_SENDER_EMAIL'],
+      });
     }
   })
   .transform((value) => ({

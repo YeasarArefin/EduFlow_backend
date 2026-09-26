@@ -1,0 +1,11 @@
+import type { RequestHandler } from 'express';
+import { listPendingSmsRecharges, listSmsPackages, reviewSmsRecharge, saveSmsPackage, submitSmsRecharge } from '../services/sms-recharge.service';
+import { packageSchema, rechargeSchema, rejectionSchema } from '../validation/sms-recharge.validation';
+export const activePackages:RequestHandler=async(_q,res)=>res.json({data:await listSmsPackages(true)});
+export const packages:RequestHandler=async(_q,res)=>res.json({data:await listSmsPackages()});
+export const createPackage:RequestHandler=async(req,res)=>res.status(201).json({data:await saveSmsPackage(undefined,packageSchema.parse(req.body))});
+export const updatePackage:RequestHandler=async(req,res)=>res.json({data:await saveSmsPackage(String(req.params.id),packageSchema.parse(req.body))});
+export const submitRecharge:RequestHandler=async(req,res)=>res.status(201).json({data:await submitSmsRecharge(req.workspaceContext!.workspaceId,req.authenticatedUser!.id,rechargeSchema.parse(req.body))});
+export const pendingRecharges:RequestHandler=async(_q,res)=>res.json({data:await listPendingSmsRecharges()});
+export const approveRecharge:RequestHandler=async(req,res)=>res.json({data:await reviewSmsRecharge(String(req.params.id),req.authenticatedUser!.id,'approved')});
+export const rejectRecharge:RequestHandler=async(req,res)=>res.json({data:await reviewSmsRecharge(String(req.params.id),req.authenticatedUser!.id,'rejected',rejectionSchema.parse(req.body).rejectionReason)});

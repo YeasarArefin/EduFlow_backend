@@ -3,6 +3,7 @@ import { permissions, rolePermissions, workspaceRoleCodes, workspaceRoles } from
 import { seedDevelopmentPlatformOwner } from './development-platform-owner';
 import { studentFeePermissions } from '../../config/student-fees';
 import { attendancePermissions } from '../../config/attendance';
+import { expensePermissions } from '../../config/expenses';
 
 const roles = [
   {
@@ -28,6 +29,24 @@ const roles = [
 ];
 
 const permissionRows = [
+  {
+    ...expensePermissions.view,
+    name: 'View expenses and finance',
+    module: 'expenses',
+    description: 'View workspace expenses and financial summaries.',
+  },
+  {
+    ...expensePermissions.manage,
+    name: 'Manage expenses',
+    module: 'expenses',
+    description: 'Create, edit, and manage workspace expenses.',
+  },
+  {
+    ...expensePermissions.reverse,
+    name: 'Reverse expenses',
+    module: 'expenses',
+    description: 'Reverse recorded workspace expenses.',
+  },
   {
     code: 1601,
     key: 'members.manage',

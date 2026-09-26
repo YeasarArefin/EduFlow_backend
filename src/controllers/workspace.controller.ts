@@ -5,6 +5,7 @@ import { getWorkspaceOnboardingState } from '../services/workspace-onboarding-st
 import { getWorkspaceDashboardSummary } from '../services/workspace-dashboard.service';
 import {
   createWorkspaceOnboardingSchema,
+  workspaceDashboardQuerySchema,
   workspaceIdSchema,
   workspaceListQuerySchema,
 } from '../validation/workspace.validation';
@@ -62,15 +63,23 @@ export const getWorkspaceOnboardState: RequestHandler = async (req, res, next) =
 export const getWorkspaceDashboard: RequestHandler = async (req, res, next) => {
   const context = req.workspaceContext;
   if (!context) {
-    res
-      .status(401)
-      .json({
-        error: { code: 'UNAUTHENTICATED', message: 'A valid authentication session is required.' },
-      });
+    res.status(401).json({
+      error: { code: 'UNAUTHENTICATED', message: 'A valid authentication session is required.' },
+    });
+    return;
+  }
+  const parsed = workspaceDashboardQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Request validation failed.',
+      },
+    });
     return;
   }
   try {
-    const summary = await getWorkspaceDashboardSummary(context.workspaceId);
+    const summary = await getWorkspaceDashboardSummary(context.workspaceId, parsed.data);
     if (!summary) {
       res
         .status(404)

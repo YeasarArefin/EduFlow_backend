@@ -24,6 +24,7 @@ import {
   subscriptions,
   workspaceEntitlementOverrides,
 } from '../schema/subscriptions';
+import { smsCreditLedger, smsWallets } from '../schema/sms-wallet';
 
 export const platformOwnersRelations = relations(platformOwners, () => ({}));
 
@@ -68,6 +69,21 @@ export const workspacesRelations = relations(workspaces, ({ many, one }) => ({
   attendanceSessions: many(attendanceSessions),
   attendanceRecords: many(attendanceRecords),
   teacherSalaries: many(teacherSalaries),
+  smsWallet: one(smsWallets),
+  smsCreditLedger: many(smsCreditLedger),
+}));
+
+export const smsWalletsRelations = relations(smsWallets, ({ many, one }) => ({
+  workspace: one(workspaces, { fields: [smsWallets.workspaceId], references: [workspaces.id] }),
+  ledgerEntries: many(smsCreditLedger),
+}));
+
+export const smsCreditLedgerRelations = relations(smsCreditLedger, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [smsCreditLedger.workspaceId],
+    references: [workspaces.id],
+  }),
+  wallet: one(smsWallets, { fields: [smsCreditLedger.walletId], references: [smsWallets.id] }),
 }));
 
 export const studentsRelations = relations(students, ({ many, one }) => ({

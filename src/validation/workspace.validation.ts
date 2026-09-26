@@ -22,6 +22,18 @@ export const workspaceListQuerySchema = z
   .strict();
 export const workspaceIdSchema = uuidSchema;
 
+const dashboardMonthSchema = z.iso
+  .date()
+  .regex(/^[1-9]\d{3}-\d{2}-01$/, 'Month must be the first day of a month.')
+  .refine((value) => value <= '9998-12-01', 'Month must be before year 9999.');
+
+export const workspaceDashboardQuerySchema = z
+  .object({
+    month: dashboardMonthSchema.optional(),
+    batchId: uuidSchema.optional(),
+  })
+  .strict();
+
 const bangladeshiMobileNumberSchema = z.string().regex(/^(?:\+8801\d{9}|01\d{9})$/);
 
 export const createWorkspaceOnboardingSchema = z
