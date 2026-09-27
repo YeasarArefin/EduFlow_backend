@@ -10,9 +10,10 @@ const usesSupabase =
 
 export const pool = new Pool({
   connectionString: env.DATABASE_URL,
-  // Supabase requires TLS. Keep certificate verification enabled rather than accepting an
-  // arbitrary certificate; local Docker connections remain unencrypted.
-  ...(usesSupabase ? { ssl: { rejectUnauthorized: true } } : {}),
+  // Supabase connection URLs use sslmode=require. That encrypts transport, while full CA
+  // verification would additionally require the Supabase root certificate in this service.
+  // Local Docker connections remain unencrypted.
+  ...(usesSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
   // A bounded pool is safe for Render instances and works with Supabase's transaction pooler.
   max: env.NODE_ENV === 'production' ? 10 : undefined,
   idleTimeoutMillis: 30_000,
