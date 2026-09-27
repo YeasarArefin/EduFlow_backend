@@ -27,18 +27,19 @@ describe('workspace settings API', () => {
         .post('/api/auth/sign-up/email')
         .send({ name: 'Settings User', email, password: 'safe-test-password' })
         .expect(200);
-      const signin = await request(app)
-        .post('/api/auth/sign-in/email')
-        .send({ email, password: 'safe-test-password' })
-        .expect(200);
+      const cookie = signup.headers['set-cookie'][0];
       if (isMember) {
         memberId = signup.body.user.id;
-        memberCookie = signin.headers['set-cookie'][0];
+        memberCookie = cookie;
       } else {
         ownerId = signup.body.user.id;
-        ownerCookie = signin.headers['set-cookie'][0];
+        ownerCookie = cookie;
       }
     }
+    await pool.query('UPDATE "user" SET email_verified = true WHERE id IN ($1, $2)', [
+      ownerId,
+      memberId,
+    ]);
     await pool.query(
       "INSERT INTO plans (id,name,slug,duration_days,trial_days) VALUES ($1,'Settings Plan',$2,30,0)",
       [planId, `settings-${suffix}`]
@@ -81,6 +82,7 @@ describe('workspace settings API', () => {
       'workspace_members',
       'workspace_settings',
       'subscriptions',
+      'sms_wallets',
     ])
       await pool.query(`DELETE FROM ${table} WHERE workspace_id IN ($1,$2)`, [
         workspaceA,
@@ -98,6 +100,9 @@ describe('workspace settings API', () => {
       .set(headers())
       .send({
         name: 'Updated Center',
+        phone: '01712345678',
+        email: 'updated-center@example.test',
+        address: '12 Test Road, Dhaka',
         defaultFeeDueDay: 12,
         gracePeriodDays: 5,
         receiptPrefix: 'UCD',
@@ -109,6 +114,9 @@ describe('workspace settings API', () => {
     expect(updated.body.data).toMatchObject({
       workspaceId: workspaceA,
       name: 'Updated Center',
+      phone: '01712345678',
+      email: 'updated-center@example.test',
+      address: '12 Test Road, Dhaka',
       defaultFeeDueDay: 12,
       gracePeriodDays: 5,
       receiptPrefix: 'UCD',
@@ -140,6 +148,11 @@ describe('workspace settings API', () => {
       .patch('/api/v1/workspace-settings')
       .set(headers())
       .send({ email: 'not-an-email' })
+      .expect(400);
+    await request(app)
+      .patch('/api/v1/workspace-settings')
+      .set(headers())
+      .send({ phone: '+12025550123' })
       .expect(400);
   });
 

@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { withWorkspaceContext } from '../database/client';
 import { notificationDeliveries } from '../database/schema/notification-deliveries';
 import { workspaceSettings } from '../database/schema/workspaces';

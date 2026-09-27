@@ -5,6 +5,48 @@ info:
 servers:
   - url: /
 paths:
+  /api/auth/change-password:
+    post:
+      summary: Change the authenticated user's password
+      description: Verifies the current password, replaces it using Better Auth, and optionally revokes every other active session while rotating the current session.
+      security: [{ betterAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [currentPassword, newPassword, revokeOtherSessions]
+              properties:
+                currentPassword: { type: string, format: password }
+                newPassword: { type: string, format: password, minLength: 8, maxLength: 128 }
+                revokeOtherSessions: { type: boolean }
+      responses:
+        '200': { description: Password changed and current session retained }
+        '400': { description: Current password or replacement password is invalid }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { description: Too many password-change attempts }
+  /api/auth/update-user:
+    post:
+      summary: Update the current account profile
+      operationId: updateCurrentUser
+      description: Better Auth-managed endpoint. Updates only the authenticated user. Email changes remain disabled; this flow currently accepts a validated display name only.
+      security: [{ betterAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '200': { description: Current account profile updated }
+        '400': { description: INVALID_ACCOUNT_NAME or unsupported email update }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
   /api/v1/sms/templates:
     get:
       summary: List workspace SMS templates
@@ -645,7 +687,14 @@ paths:
               additionalProperties: false
               properties:
                 name: { type: string, minLength: 1, maxLength: 150 }
-                phone: { type: string, nullable: true, maxLength: 30 }
+                phone:
+                  {
+                    type: string,
+                    nullable: true,
+                    maxLength: 30,
+                    pattern: '^(?:\\+8801\\d{9}|01\\d{9})$',
+                    example: '01712345678',
+                  }
                 email: { type: string, nullable: true, format: email, maxLength: 255 }
                 address: { type: string, nullable: true, maxLength: 1000 }
                 defaultFeeDueDay: { type: integer, nullable: true, minimum: 1, maximum: 31 }

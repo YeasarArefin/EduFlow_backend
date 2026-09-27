@@ -4,8 +4,19 @@ import { Pool } from 'pg';
 import { env } from '../config/env';
 import * as schema from './schema';
 
+const databaseHost = new URL(env.DATABASE_URL).hostname;
+const usesSupabase =
+  databaseHost.endsWith('.supabase.co') || databaseHost.endsWith('.pooler.supabase.com');
+
 export const pool = new Pool({
   connectionString: env.DATABASE_URL,
+  // Supabase requires TLS. Keep certificate verification enabled rather than accepting an
+  // arbitrary certificate; local Docker connections remain unencrypted.
+  ...(usesSupabase ? { ssl: { rejectUnauthorized: true } } : {}),
+  // A bounded pool is safe for Render instances and works with Supabase's transaction pooler.
+  max: env.NODE_ENV === 'production' ? 10 : undefined,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 10_000,
 });
 
 export const db = drizzle(pool, {

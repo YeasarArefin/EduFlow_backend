@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { apiBasePath } from './config/http';
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
+import { passwordResetRateLimit } from './middleware/password-reset-rate-limit';
 import { requestIdMiddleware } from './middleware/request-id';
 import { healthRouter } from './routes/health.routes';
 import { v1Router } from './routes/v1';
@@ -14,11 +15,19 @@ import { v1Router } from './routes/v1';
 export function createApp() {
   const app = express();
 
+  app.set('trust proxy', 1);
+
   app.use(requestIdMiddleware);
   app.use(helmet());
   app.use(
     cors({
-      origin: env.FRONTEND_ORIGIN,
+      origin: (origin, callback) => {
+        if (!origin || env.corsAllowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
       credentials: true,
     })
   );
@@ -30,8 +39,9 @@ export function createApp() {
       legacyHeaders: false,
     })
   );
-  app.all('/api/auth/*splat', toNodeHandler(auth));
   app.use(express.json());
+  app.post('/api/auth/request-password-reset', passwordResetRateLimit);
+  app.all('/api/auth/*splat', toNodeHandler(auth));
 
   app.use(healthRouter);
   app.use(apiBasePath, v1Router);
