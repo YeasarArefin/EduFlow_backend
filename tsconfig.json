@@ -10,7 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "..",
+    "rootDir": ".",
     "types": ["node", "vitest"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "drizzle.config.ts"],
