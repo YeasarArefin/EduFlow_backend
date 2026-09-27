@@ -5,6 +5,16 @@ info:
 servers:
   - url: /
 paths:
+  /openapi.yaml:
+    get:
+      summary: Download the EduFlow OpenAPI specification
+      operationId: getOpenApiSpecification
+      responses:
+        '200':
+          description: OpenAPI YAML document
+          content:
+            application/yaml:
+              schema: { type: string }
   /api/auth/change-password:
     post:
       summary: Change the authenticated user's password
@@ -1510,7 +1520,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/WorkspaceMembershipRequired' }
         '404': { description: Workspace not found }
-  /api/v1/workspaces/{workspaceId}/subscription-operations/{operation}:
   /api/v1/teachers:
     get:
       summary: List workspace teachers
@@ -2229,7 +2238,7 @@ paths:
       operationId: getPlatformWorkspaceDetail
       security: [{ betterAuth: [] }]
       parameters:
-        - { $ref: '#/components/parameters/WorkspacePathId' }
+        - { $ref: '#/components/parameters/WorkspaceDetailId' }
       responses:
         '200':
           {
@@ -2537,7 +2546,7 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
-    WorkspacePathId:
+    WorkspaceDetailId:
       name: id
       in: path
       required: true

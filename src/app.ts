@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import path from 'node:path';
 import rateLimit from 'express-rate-limit';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth';
@@ -40,6 +41,9 @@ export function createApp() {
     })
   );
   app.use(express.json());
+  app.get('/openapi.yaml', (_request, response) => {
+    response.type('application/yaml').sendFile(path.resolve(process.cwd(), 'openapi.yaml'));
+  });
   app.post('/api/auth/request-password-reset', passwordResetRateLimit);
   app.all('/api/auth/*splat', toNodeHandler(auth));
 
