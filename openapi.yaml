@@ -347,6 +347,51 @@ paths:
           { name: id, in: path, required: true, schema: { type: string, format: uuid } },
         ]
       responses: { '200': { description: Recipient delivery diagnostics } }
+  /api/v1/sessions/takeover:
+    post:
+      summary: Revoke all existing sessions and sign in (session takeover)
+      operationId: sessionTakeover
+      description: Validates email and password credentials, deletes all active sessions for the account, and issues a new session and session cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Session created and existing sessions revoked
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+              description: Better Auth session cookie
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { description: Invalid email or password }
+  /api/v1/sessions/active-devices:
+    post:
+      summary: List active devices using credentials
+      operationId: listActiveDevicesByCredentials
+      description: Validates credentials and returns the active sessions and device info for the user without requiring an active session cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: List of active sessions and device metadata }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { description: Invalid email or password }
   /api/v1/sessions:
     get:
       summary: List the current user's active sessions

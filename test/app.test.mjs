@@ -3,7 +3,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { createApp } = require('../dist/backend/src/app.js');
+const { createApp } = require('../dist/src/app.js');
 
 describe('API foundation', () => {
   const app = createApp();

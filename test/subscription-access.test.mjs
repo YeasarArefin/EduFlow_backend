@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 const require = createRequire(import.meta.url);
 const {
   deriveSubscriptionAccessState,
-} = require('../dist/backend/src/services/subscription-access.service.js');
+} = require('../dist/src/services/subscription-access.service.js');
 const now = new Date('2026-08-31T00:00:00.000Z');
 
 describe('subscription access state', () => {

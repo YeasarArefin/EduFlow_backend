@@ -4,14 +4,14 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
-const { createApp } = require('../dist/backend/src/app.js');
-const { pool } = require('../dist/backend/src/database/client.js');
+const { createApp } = require('../dist/src/app.js');
+const { pool } = require('../dist/src/database/client.js');
 const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const email = `auth-${suffix}@example.test`;
-const workspaceId = '00000000-0000-4000-8200-000000000001';
-const deniedWorkspaceId = '00000000-0000-4000-8200-000000000002';
-const membershipId = '00000000-0000-4000-8201-000000000001';
-const deniedMembershipId = '00000000-0000-4000-8201-000000000002';
+const workspaceId = randomUUID();
+const deniedWorkspaceId = randomUUID();
+const membershipId = randomUUID();
+const deniedMembershipId = randomUUID();
 const planId = randomUUID();
 
 describe('Better Auth email/password foundation', () => {
@@ -31,6 +31,10 @@ describe('Better Auth email/password foundation', () => {
     ]);
     await pool.query('DELETE FROM plan_features WHERE plan_id = $1', [planId]);
     await pool.query('DELETE FROM plans WHERE id = $1', [planId]);
+    await pool.query('DELETE FROM sms_wallets WHERE workspace_id IN ($1, $2)', [
+      workspaceId,
+      deniedWorkspaceId,
+    ]);
     await pool.query('DELETE FROM workspace_members WHERE workspace_id = $1', [deniedWorkspaceId]);
     await pool.query('DELETE FROM workspaces WHERE id = $1', [deniedWorkspaceId]);
     await pool.query('DELETE FROM workspace_members WHERE workspace_id = $1', [workspaceId]);
@@ -52,6 +56,9 @@ describe('Better Auth email/password foundation', () => {
 
     const userResult = await pool.query('SELECT id FROM "user" WHERE email = $1', [email]);
     expect(userResult.rowCount).toBe(1);
+    await pool.query('UPDATE "user" SET email_verified = true WHERE id = $1', [
+      userResult.rows[0].id,
+    ]);
 
     const loginResponse = await request(app)
       .post('/api/auth/sign-in/email')

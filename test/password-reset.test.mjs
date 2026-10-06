@@ -4,8 +4,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { createApp } = require('../dist/backend/src/app.js');
-const { pool } = require('../dist/backend/src/database/client.js');
+const { createApp } = require('../dist/src/app.js');
+const { pool } = require('../dist/src/database/client.js');
 const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const email = `password-reset-${suffix}@example.test`;
 const oldPassword = 'old-safe-test-password';

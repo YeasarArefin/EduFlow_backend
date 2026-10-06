@@ -3,12 +3,12 @@ import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { createApp } = require('../dist/backend/src/app.js');
-const { pool } = require('../dist/backend/src/database/client.js');
+const { createApp } = require('../dist/src/app.js');
+const { pool } = require('../dist/src/database/client.js');
 const {
   DEVELOPMENT_PLATFORM_OWNER,
   seedDevelopmentPlatformOwner,
-} = require('../dist/backend/src/database/seed/development-platform-owner.js');
+} = require('../dist/src/database/seed/development-platform-owner.js');
 
 describe('development Platform Owner seed', () => {
   const app = createApp();

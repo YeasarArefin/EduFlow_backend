@@ -4,8 +4,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { createApp } = require('../dist/backend/src/app.js');
-const { pool } = require('../dist/backend/src/database/client.js');
+const { createApp } = require('../dist/src/app.js');
+const { pool } = require('../dist/src/database/client.js');
 
 const app = createApp();
 const suffix = randomUUID();

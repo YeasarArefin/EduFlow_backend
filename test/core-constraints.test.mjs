@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { env } = require('../dist/backend/src/config/env.js');
+const { env } = require('../dist/src/config/env.js');
 const { Pool } = pg;
 const pool = new Pool({ connectionString: env.DATABASE_URL });
 const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;

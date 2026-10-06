@@ -6,8 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { assignPlatformOwner, restorePlatformOwner } from './support/platform-owner-fixture.mjs';
 
 const require = createRequire(import.meta.url);
-const { createApp } = require('../dist/backend/src/app.js');
-const { pool } = require('../dist/backend/src/database/client.js');
+const { createApp } = require('../dist/src/app.js');
+const { pool } = require('../dist/src/database/client.js');
 const app = createApp();
 const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const workspaceId = randomUUID();

@@ -1,9 +1,10 @@
+import type { IncomingHttpHeaders } from 'node:http';
 import { and, desc, eq, gt, ne } from 'drizzle-orm';
+import { verifyPassword } from 'better-auth/crypto';
 import { db } from '../database/client';
-import { session } from '../database/schema/auth';
-import { platformOwners } from '../database/schema/platform';
-import { workspaceRoleCodes } from '../database/schema/roles';
-import { workspaceMembers } from '../database/schema/workspaces';
+import { account, session, user } from '../database/schema/auth';
+import { auth } from '../auth';
+import { AppError } from '../middleware/error-handler';
 
 export type ActiveSession = {
   id: string;
@@ -16,6 +17,8 @@ export type ActiveSession = {
   isCurrent: boolean;
 };
 
+export const SESSION_LIMIT = 2;
+
 function getDeviceLabel(userAgent: string | null): string {
   if (!userAgent) return 'Unknown device';
   const browser = /Edg\//.test(userAgent)
@@ -27,34 +30,22 @@ function getDeviceLabel(userAgent: string | null): string {
         : /Safari\//.test(userAgent)
           ? 'Safari'
           : 'Browser';
-  const os = /Windows/.test(userAgent)
-    ? 'Windows'
-    : /Mac OS X/.test(userAgent)
-      ? 'macOS'
-      : /Android/.test(userAgent)
-        ? 'Android'
-        : /iPhone|iPad/.test(userAgent)
-          ? 'iOS'
-          : 'Unknown OS';
+  const os = /iPhone|iPad/i.test(userAgent)
+    ? 'iOS'
+    : /Android/i.test(userAgent)
+      ? 'Android'
+      : /Windows/i.test(userAgent)
+        ? 'Windows'
+        : /Mac OS X|Macintosh/i.test(userAgent)
+          ? 'macOS'
+          : /Linux/i.test(userAgent)
+            ? 'Linux'
+            : 'Unknown OS';
   return `${browser} on ${os}`;
 }
 
-export async function getSessionLimit(userId: string): Promise<1 | 2> {
-  const [platformOwner, workspaceOwner] = await Promise.all([
-    db.select({ userId: platformOwners.userId }).from(platformOwners).where(eq(platformOwners.userId, userId)).limit(1),
-    db
-      .select({ userId: workspaceMembers.userId })
-      .from(workspaceMembers)
-      .where(
-        and(
-          eq(workspaceMembers.userId, userId),
-          eq(workspaceMembers.roleCode, workspaceRoleCodes.owner),
-          eq(workspaceMembers.status, 'active')
-        )
-      )
-      .limit(1),
-  ]);
-  return platformOwner.length || workspaceOwner.length ? 2 : 1;
+export function getSessionLimit(_userId?: string): Promise<number> {
+  return Promise.resolve(SESSION_LIMIT);
 }
 
 export async function getActiveSessions(userId: string, currentSessionId?: string): Promise<ActiveSession[]> {
@@ -70,6 +61,7 @@ export async function getActiveSessions(userId: string, currentSessionId?: strin
     .from(session)
     .where(and(eq(session.userId, userId), gt(session.expiresAt, new Date())))
     .orderBy(desc(session.updatedAt));
+
   return rows.map((row) => ({
     id: row.id,
     createdAt: row.createdAt,
@@ -88,4 +80,127 @@ export async function revokeSession(userId: string, sessionId: string): Promise<
 
 export async function revokeOtherSessions(userId: string, currentSessionId: string): Promise<void> {
   await db.delete(session).where(and(eq(session.userId, userId), ne(session.id, currentSessionId)));
+}
+
+export async function revokeAllSessions(userId: string): Promise<void> {
+  await db.delete(session).where(eq(session.userId, userId));
+}
+
+export async function getActiveDevicesByCredentials(
+  email: string,
+  password: string
+): Promise<ActiveSession[]> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const [userRow] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.email, normalizedEmail))
+    .limit(1);
+
+  if (!userRow) {
+    throw new AppError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+  }
+
+  const [accountRow] = await db
+    .select({ password: account.password })
+    .from(account)
+    .where(and(eq(account.userId, userRow.id), eq(account.providerId, 'credential')))
+    .limit(1);
+
+  if (!accountRow || !accountRow.password) {
+    throw new AppError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+  }
+
+  const isPasswordValid = await verifyPassword({
+    hash: accountRow.password,
+    password,
+  });
+
+  if (!isPasswordValid) {
+    throw new AppError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+  }
+
+  return getActiveSessions(userRow.id);
+}
+
+export async function takeoverSession(
+  email: string,
+  password: string,
+  headers?: IncomingHttpHeaders
+): Promise<{ user: unknown; session: unknown; setCookieHeaders?: string[] }> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const [userRow] = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      image: user.image,
+    })
+    .from(user)
+    .where(eq(user.email, normalizedEmail))
+    .limit(1);
+
+  if (!userRow) {
+    throw new AppError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+  }
+
+  const [accountRow] = await db
+    .select({ password: account.password })
+    .from(account)
+    .where(and(eq(account.userId, userRow.id), eq(account.providerId, 'credential')))
+    .limit(1);
+
+  if (!accountRow || !accountRow.password) {
+    throw new AppError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+  }
+
+  const isPasswordValid = await verifyPassword({
+    hash: accountRow.password,
+    password,
+  });
+
+  if (!isPasswordValid) {
+    throw new AppError('INVALID_CREDENTIALS', 'Invalid email or password.', 401);
+  }
+
+  // Revoke all existing sessions for this user
+  await revokeAllSessions(userRow.id);
+
+  // Sign in via Better Auth API with asResponse: true
+  const reqHeaders = new Headers();
+  if (headers) {
+    for (const [key, value] of Object.entries(headers)) {
+      if (Array.isArray(value)) {
+        for (const v of value) reqHeaders.append(key, v);
+      } else if (value !== undefined) {
+        reqHeaders.set(key, value);
+      }
+    }
+  }
+
+  const response = await auth.api.signInEmail({
+    body: {
+      email: userRow.email,
+      password,
+    },
+    headers: reqHeaders,
+    asResponse: true,
+  });
+
+  const responseBody = (await response.json()) as {
+    user: unknown;
+    session: unknown;
+  } & Record<string, unknown>;
+  const getSetCookieFn = (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie;
+  const setCookie =
+    typeof getSetCookieFn === 'function'
+      ? getSetCookieFn.call(response.headers)
+      : [response.headers.get('set-cookie')].filter(Boolean);
+
+  return {
+    user: responseBody.user,
+    session: responseBody.session,
+    setCookieHeaders: setCookie as string[],
+  };
 }

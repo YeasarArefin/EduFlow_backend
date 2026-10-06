@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && vitest run --no-file-parallelism --configLoader runner --environment node --globals test/notice-email.test.mjs test/app.test.mjs test/auth.test.mjs test/password-reset.test.mjs test/change-password.test.mjs test/account-info.test.mjs test/email-verification.test.mjs test/database.test.mjs test/core-constraints.test.mjs test/subscription-constraints.test.mjs test/payment-constraints.test.mjs test/payment-api.test.mjs test/payment-review-api.test.mjs test/public-plans-api.test.mjs test/subscription-lifecycle.test.mjs test/subscription-lifecycle-e2e.test.mjs test/workspace-entitlements.test.mjs test/subscription-access.test.mjs test/entitlement-guards.test.mjs test/rls-isolation.test.mjs test/workspace-onboarding-api.test.mjs test/workspace-onboarding-state-api.test.mjs test/workspace-dashboard-api.test.mjs test/student-api.test.mjs test/batch-api.test.mjs test/student-fee-api.test.mjs test/student-payment-api.test.mjs test/attendance-api.test.mjs test/teacher-api.test.mjs test/teacher-salary-api.test.mjs test/member-api.test.mjs test/sms-wallet-api.test.mjs test/onboarding-e2e.test.mjs test/development-platform-owner-seed.test.mjs test/saas-funnel-e2e.test.mjs",
+    "test": "npm run build && vitest run --no-file-parallelism --configLoader runner --environment node --globals test/notice-email.test.mjs test/app.test.mjs test/auth.test.mjs test/session-management.test.mjs test/password-reset.test.mjs test/change-password.test.mjs test/account-info.test.mjs test/email-verification.test.mjs test/database.test.mjs test/core-constraints.test.mjs test/subscription-constraints.test.mjs test/payment-constraints.test.mjs test/payment-api.test.mjs test/payment-review-api.test.mjs test/public-plans-api.test.mjs test/subscription-lifecycle.test.mjs test/subscription-lifecycle-e2e.test.mjs test/workspace-entitlements.test.mjs test/subscription-access.test.mjs test/entitlement-guards.test.mjs test/rls-isolation.test.mjs test/workspace-onboarding-api.test.mjs test/workspace-onboarding-state-api.test.mjs test/workspace-dashboard-api.test.mjs test/student-api.test.mjs test/batch-api.test.mjs test/student-fee-api.test.mjs test/student-payment-api.test.mjs test/attendance-api.test.mjs test/teacher-api.test.mjs test/teacher-salary-api.test.mjs test/member-api.test.mjs test/sms-wallet-api.test.mjs test/onboarding-e2e.test.mjs test/development-platform-owner-seed.test.mjs test/saas-funnel-e2e.test.mjs",
     "test:password-reset": "npm run build && vitest run --no-file-parallelism --configLoader runner --environment node --globals test/password-reset.test.mjs",
     "test:change-password": "npm run build && vitest run --no-file-parallelism --configLoader runner --environment node --globals test/change-password.test.mjs",
     "test:account-info": "npm run build && vitest run --no-file-parallelism --configLoader runner --environment node --globals test/account-info.test.mjs",
@@ -25,7 +25,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/database/seed/workspace-authorization.ts",
-    "db:setup": "npm run db:migrate && npm run db:seed"
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "test:session-management": "npm run build && vitest run --no-file-parallelism --configLoader runner --environment node --globals test/session-management.test.mjs"
   },
   "keywords": [],
   "author": "",

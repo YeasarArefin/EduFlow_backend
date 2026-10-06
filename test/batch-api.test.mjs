@@ -5,8 +5,8 @@ import { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { createApp } = require('../dist/backend/src/app.js');
-const { env } = require('../dist/backend/src/config/env.js');
+const { createApp } = require('../dist/src/app.js');
+const { env } = require('../dist/src/config/env.js');
 const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
 const app = createApp();
 const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;

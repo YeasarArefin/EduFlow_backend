@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { AppError } = require('../dist/backend/src/middleware/error-handler.js');
+const { AppError } = require('../dist/src/middleware/error-handler.js');
 
 describe('subscription lifecycle transition rules', () => {
   it('exposes explicit transition errors as conflicts', () => {

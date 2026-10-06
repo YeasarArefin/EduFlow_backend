@@ -4,13 +4,13 @@ import { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { env } = require('../dist/backend/src/config/env.js');
+const { env } = require('../dist/src/config/env.js');
 const {
   requireWorkspaceSubscriptionAccess,
-} = require('../dist/backend/src/middleware/require-subscription-access.js');
+} = require('../dist/src/middleware/require-subscription-access.js');
 const {
   requireFeatureEntitlement,
-} = require('../dist/backend/src/middleware/require-feature-entitlement.js');
+} = require('../dist/src/middleware/require-feature-entitlement.js');
 const { Pool } = pg;
 const pool = new Pool({ connectionString: env.DATABASE_URL });
 const workspaceId = randomUUID();
