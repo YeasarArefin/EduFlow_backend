@@ -19,6 +19,9 @@
 
 This repository powers **EduFlow** — a multi-tenant coaching center management SaaS designed as a resilient, modular monolith. It provides high-throughput, strictly audited REST endpoints for academic routines, fee collections, payroll, SMS gateways, and subscription management.
 
+> [!NOTE]
+> **Looking for the Web Application?** The Next.js 15 App Router frontend, TanStack Query server-state management, and ORBIT design system UI for EduFlow are located in the companion repository: **[EduFlow_frontend](https://github.com/YeasarArefin/EduFlow_frontend)**.
+
 ---
 
 ## 🚀 Live Demo & API Consumer Credentials
@@ -196,6 +199,15 @@ npm run db:seed
 # 6. Start development server (Port 4000)
 npm run dev
 ```
+
+---
+
+## 🔗 Architecture Repositories
+
+| Repository | Scope & Technologies | Link |
+|---|---|---|
+| **EduFlow Backend** | Express 5, TypeScript, Drizzle ORM, PostgreSQL RLS, Better Auth, RabbitMQ | *This Repository* |
+| **EduFlow Frontend** | Next.js 15, React Server Components, TanStack Query, shadcn/ui, ORBIT Design System | [github.com/YeasarArefin/EduFlow_frontend](https://github.com/YeasarArefin/EduFlow_frontend) |
 
 ---
 
