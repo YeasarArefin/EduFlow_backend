@@ -1,105 +1,50 @@
-<p align="center">
-  <img src="../frontend/public/logo.png" alt="EduFlow Logo" width="120" />
+# EduFlow — Backend REST API
+
+<p align="left">
+  <a href="https://eduflowe.vercel.app"><img src="https://img.shields.io/badge/Live%20Platform-eduflowe.vercel.app-bef264?style=for-the-badge&logo=vercel&logoColor=000" alt="Live Demo" /></a>
+  <a href="https://github.com/YeasarArefin/EduFlow_frontend"><img src="https://img.shields.io/badge/Frontend%20Repo-EduFlow_frontend-black?style=for-the-badge&logo=github" alt="Frontend Repo" /></a>
 </p>
 
-<h1 align="center">EduFlow — Backend API</h1>
-
-<p align="center">
-  <strong>Production-ready Express + TypeScript REST API powering EduFlow — a multi-tenant coaching-center management SaaS.</strong>
+<p align="left">
+  <img src="https://img.shields.io/badge/Node.js%2020-LTS-339933?style=flat-square&logo=nodedotjs" alt="Node.js" />
+  <img src="https://img.shields.io/badge/Express-v5-000000?style=flat-square&logo=express" alt="Express" />
+  <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/ORM-Drizzle%20ORM-C5F74F?style=flat-square" alt="Drizzle ORM" />
+  <img src="https://img.shields.io/badge/Database-PostgreSQL%20%2B%20RLS-336791?style=flat-square&logo=postgresql" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Auth-Better%20Auth-orange?style=flat-square" alt="Better Auth" />
+  <img src="https://img.shields.io/badge/Queue-RabbitMQ-FF6600?style=flat-square&logo=rabbitmq" alt="RabbitMQ" />
+  <img src="https://img.shields.io/badge/Tests-Vitest%20%2B%20Supertest-6E9F18?style=flat-square&logo=vitest" alt="Vitest" />
+  <img src="https://img.shields.io/badge/API%20Spec-OpenAPI%203.0-85EA2D?style=flat-square&logo=openapiinitiative&logoColor=000" alt="OpenAPI" />
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Runtime-Node.js%2020-339933?logo=nodedotjs" alt="Node.js" />
-  <img src="https://img.shields.io/badge/Framework-Express-000000?logo=express" alt="Express" />
-  <img src="https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/ORM-Drizzle-C5F74F" alt="Drizzle ORM" />
-  <img src="https://img.shields.io/badge/Database-PostgreSQL%20%2B%20Supabase-336791?logo=postgresql" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Auth-Better%20Auth-orange" alt="Better Auth" />
-  <img src="https://img.shields.io/badge/Queue-RabbitMQ-FF6600?logo=rabbitmq" alt="RabbitMQ" />
-  <img src="https://img.shields.io/badge/Tests-Vitest%20%2B%20Supertest-6E9F18?logo=vitest" alt="Vitest" />
-  <img src="https://img.shields.io/badge/Deploy-Render-46E3B7" alt="Render" />
-</p>
+This repository powers **EduFlow** — a multi-tenant coaching center management SaaS designed as a resilient, modular monolith. It provides high-throughput, strictly audited REST endpoints for academic routines, fee collections, payroll, SMS gateways, and subscription management.
 
 ---
 
-> **This is the backend repository.** The frontend lives at [EduFlow_frontend](https://github.com/YeasarArefin/EduFlow_frontend).
+## 🚀 Live Demo & API Consumer Credentials
+
+Test the live application connected to this backend service:
+
+🔗 **Production Web App:** [https://eduflowe.vercel.app](https://eduflowe.vercel.app)
+
+| Account Type | Email | Password | Scope |
+|---|---|---|---|
+| **Platform Admin** | `admin@eduflow.app` | `12345678` | Global SaaS control plane: plan configuration, manual payment reviews, tenant lifecycle & revenue metrics. |
+| **Workspace Owner** | `yeasararefin007@gmail.com` | `12345678` | Coaching Center Owner view: student rosters, batch schedules, fee collections, attendance, SMS wallet & staff roles. |
 
 ---
 
-## Table of Contents
+## 🏛️ System Architecture
 
-- [What is EduFlow?](#what-is-eduflow)
-- [API Overview](#api-overview)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Request Pipeline](#request-pipeline)
-- [Multi-Tenancy & Security](#multi-tenancy--security)
-- [Authorization Model](#authorization-model)
-- [Domain Modules](#domain-modules)
-- [Database Design](#database-design)
-- [Async Processing](#async-processing)
-- [Backend Structure](#backend-structure)
-- [Getting Started (Local Dev)](#getting-started-local-dev)
-- [Environment Variables](#environment-variables)
-- [Testing](#testing)
-- [API Documentation](#api-documentation)
-- [Key Engineering Decisions](#key-engineering-decisions)
+EduFlow adopts a **Modular Monolith** pattern: single deployable Express API process, separate asynchronous worker process, and PostgreSQL as the single source of truth.
 
----
-
-## What is EduFlow?
-
-EduFlow is a **multi-tenant SaaS** for individual tutors and small-to-medium coaching centers in Bangladesh. This repository is the backend — a Node.js + Express REST API that handles:
-
-- Authentication & session management (Better Auth)
-- Multi-tenant workspace isolation (PostgreSQL RLS + application-level scoping)
-- Two-layer authorization: **entitlements** (platform plan limits) + **permissions** (workspace role access)
-- All business domain operations: students, batches, teachers, fees, salaries, attendance, communication, SMS wallet
-- Platform Owner administration: plans, payment review, subscription lifecycle, workspace management
-- Async email & SMS delivery via RabbitMQ workers
-
----
-
-## API Overview
-
-- All application endpoints live under `/api/v1/`
-- Health check at `/health`
-- Full OpenAPI 3.0 specification in [`openapi.yaml`](./openapi.yaml)
-- Every protected endpoint requires: **auth cookie → workspace resolution → entitlement check → permission check**
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Runtime** | Node.js 20 |
-| **Framework** | Express 5 + TypeScript |
-| **ORM** | Drizzle ORM (type-safe, SQL-like, zero magic) |
-| **Database** | PostgreSQL (Supabase-hosted) with Row-Level Security |
-| **Auth** | Better Auth (sessions, email+password, password reset, email verification) |
-| **Validation** | Zod (request schemas, all external input) |
-| **Queue** | RabbitMQ (async email, SMS, absence notifications, reminders) |
-| **Email** | Nodemailer + Gmail / Brevo |
-| **SMS** | Abstracted provider contract (swappable) |
-| **Logging** | Pino (structured JSON logs) |
-| **Error Tracking** | Sentry |
-| **Security** | Helmet, CORS, rate limiting, secure cookies |
-| **Testing** | Vitest + Supertest + Testcontainers |
-| **Migrations** | Drizzle Kit (generated, ordered, never hand-edited) |
-| **Deploy** | Render (API server + worker + cron) |
-
----
-
-## Architecture
-
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
 │  Next.js Frontend (Vercel)                               │
 └─────────────────────────┬────────────────────────────────┘
-                          │ HTTPS /api/v1/*
+                          │ HTTPS /api/v1/* (Cookies)
 ┌─────────────────────────▼────────────────────────────────┐
-│  Express API (Render)                                    │
+│  Express API Application (Render)                        │
 │                                                          │
 │  Routes → Middleware → Controllers → Services → Drizzle  │
 │                                                          │
@@ -107,340 +52,168 @@ EduFlow is a **multi-tenant SaaS** for individual tutors and small-to-medium coa
 └───────┬─────────────────┬────────────────────────────────┘
         │                 │
    Supabase          RabbitMQ
-   PostgreSQL  ──▶   Worker (Render)
-   + RLS            ├─▶ Nodemailer / Gmail (email)
-   + Storage        └─▶ SMS Provider
+   PostgreSQL  ──▶   Worker Process (Render)
+   + RLS            ├─▶ Nodemailer / Brevo (Email Delivery)
+   + Storage        └─▶ External SMS Gateway
 
-Render Cron ──▶ Discovers pending work ──▶ Enqueues to RabbitMQ
+Render Cron ──▶ Discovers due tasks ──▶ Enqueues to RabbitMQ
 ```
 
 ---
 
-## Request Pipeline
+## 🛡️ Core Security & Engineering Highlights
 
-Every API request flows through this exact chain — no shortcuts:
+### 1. Three-Layer Multi-Tenant Isolation
+Tenant isolation is non-negotiable. Data cross-contamination is eliminated through three redundant defenses:
+1. **Server-Side Session Resolution:** The client is **never trusted** for `workspaceId`. It is always extracted directly from the verified session identity on the server.
+2. **Drizzle Scoping:** All tenant domain queries mandate `.where(eq(table.workspaceId, workspaceId))`.
+3. **PostgreSQL Row-Level Security (RLS):** Database-level security policies enforce tenant constraints via `app.workspace_id`, ensuring queries cannot leak records even in the event of an application logic bug.
 
+### 2. Dual Authorization Engine: Entitlements vs Permissions
+EduFlow cleanly decouples two distinct access control systems:
+- **Entitlements (Platform Owner → Workspace):** Defines subscription capabilities (student quotas, teacher limits, feature flags). Calculated via `effective_limit = max(plan_limit, workspace_override)`.
+- **Permissions (Workspace Owner → Staff Members):** Granular role-based access matrix across 8 functional modules (`students`, `teachers`, `batches`, `attendance`, `fees`, `salaries`, `members`, `settings`). Supports member-level overrides while protecting the Workspace Owner (`101`) from privilege degradation.
+
+### 3. Session Security & Active Device Limit
+- **2 Concurrent Devices Maximum:** Enforced at both the Better Auth hook layer (`databaseHooks.session.create.before`) and via a PostgreSQL advisory lock trigger (`enforce_session_limit()`).
+- **Graceful Takeover Flow:** When the limit is reached, the API rejects login with a 403 `SESSION_LIMIT_REACHED` payload containing active device labels and IPs. A public `/api/v1/sessions/takeover` endpoint verifies credentials, revokes older sessions, and issues a valid session cookie.
+- **Security Tokens Concealment:** Sensitive session tokens are transmitted solely through secure HTTP-only cookies and never serialized into JSON response bodies.
+
+### 4. Financial Integrity (Zero Floating-Point Math)
+- All currency operations use **BDT** with exact database storage (`NUMERIC(19,2)`).
+- Student payment transactions are **immutable** — historical payment rows are never modified or deleted.
+- Auto-generated receipt numbers enforce workspace-prefixed sequencing: `${workspace_prefix}-${YYYYMM}-${seq}`.
+
+---
+
+## 🔄 Request Pipeline
+
+Every incoming request passes through a strictly typed, sequential middleware pipeline:
+
+```text
+Request
+  │
+  ├── 1. requireAuth           -> Validates Better Auth session cookie
+  ├── 2. resolveWorkspace      -> Resolves active tenant context from session
+  ├── 3. checkEntitlement      -> Enforces subscription quota & feature flags
+  ├── 4. checkPermission       -> Validates caller role & explicit action permissions
+  ├── 5. validate(zodSchema)   -> Validates and sanitizes request parameters & body
+  │
+  └── Controller Execution     -> Coordinates service layer calls and formats HTTP response
+        │
+        └── Service Layer      -> Houses domain rules, transactions, and Drizzle queries
 ```
-Route
-  └─▶ requireAuth           (validates Better Auth session cookie)
-       └─▶ resolveWorkspace      (resolves workspace_id from session, never client)
-            └─▶ checkEntitlement     (validates plan limits / feature flags)
-                 └─▶ checkPermission      (validates workspace role permissions)
-                      └─▶ validate(schema)     (Zod request body/query validation)
-                           └─▶ Controller          (reads validated input, calls service)
-                                └─▶ Service             (domain logic, Drizzle queries)
-                                     └─▶ PostgreSQL          (RLS enforced)
-```
-
-The client is **never trusted** for `workspaceId` — it is always resolved from the authenticated session on the server.
 
 ---
 
-## Multi-Tenancy & Security
+## 📦 Domain Modules Overview
 
-Tenant isolation is enforced at **three independent layers**:
-
-### 1. Application Layer
-- `workspaceId` resolved exclusively from the authenticated server session
-- Every service function receives and filters by `workspaceId` as a required parameter
-
-### 2. Drizzle ORM Layer
-- Every workspace-owned table query includes `.where(eq(table.workspaceId, workspaceId))`
-- No cross-tenant queries are possible without explicitly passing a different `workspaceId`
-
-### 3. PostgreSQL Row-Level Security
-- All tenant tables have `ENABLE ROW LEVEL SECURITY`
-- Policies enforce `workspace_id = current_setting('app.workspace_id')::uuid`
-- Even a compromised query cannot read another tenant's data at the DB level
-
-### Additional Security Measures
-- Better Auth session cookies (httpOnly, secure, sameSite)
-- Helmet (security headers), CORS (origin whitelist), rate limiting
-- Zod validation on all external input
-- Audit logging for business-significant actions (payment edits, permission changes, suspension, etc.)
-- Session limit: max 2 active sessions per user, enforced by Better Auth hook + DB trigger
-
----
-
-## Authorization Model
-
-EduFlow has **two completely separate authorization systems** that must not be conflated:
-
-### Entitlements (Platform → Workspace)
-Controlled by the Platform Owner. Defines what a workspace *can do* based on their subscription plan:
-- Student/teacher/batch/SMS quotas
-- Feature flags (e.g. CSV import, bulk SMS)
-- Per-workspace overrides: `effective_limit = max(plan_limit, workspace_override)`
-
-### Permissions (Workspace Owner → Members)
-Controlled by the Workspace Owner. Defines what a workspace member *is allowed to do*:
-
-| Role | Code | Authority |
-|---|---|---|
-| Platform Owner | system | Full platform access, unconditional |
-| Workspace Owner | 101 | Full workspace access, always allowed |
-| Admin | 201 | Custom permission set, no defaults |
-| Teacher | 301 | Limited academic access |
-| Staff | 401 | Admin/payment/communication access |
-
-**8 permission modules:** `students`, `teachers`, `batches`, `attendance`, `fees`, `salaries`, `members`, `settings`
-
-Each module has granular actions (e.g. `students.view`, `students.create`, `students.import`). Members can have per-permission overrides on top of their role defaults. The Owner role (`101`) is always protected — it can never be downgraded, suspended, or removed.
-
----
-
-## Domain Modules
-
-| Module | Key Capabilities |
+| Domain | Key Responsibilities |
 |---|---|
-| **Auth** | Email+password registration, email verification, login/logout, password reset (30-min tokens), session management (2-device limit, individual + bulk revocation) |
-| **Workspace Onboarding** | Create workspace, select plan, complete setup — one-time provisioning flow |
-| **Students** | CRUD + archive, bulk CSV import (parse → validate → preview → quota check → import), profile, guardian info, enrollment/fee/attendance history |
-| **Batches** | CRUD + archive, recurring schedules (weekday selection, Quick Presets), teacher assignment, student enrollment with fee overrides/discounts, enrollment history |
-| **Teachers** | CRUD + archive, batch assignments, salary info, NID, specialties |
-| **Student Fees** | Monthly ledger generation, partial/full payment recording (cash/bKash/Nagad/Rocket), auto-generated receipts, immutable payment history, BDT `NUMERIC(19,2)` |
-| **Teacher Salaries** | Monthly ledger, partial payment, yearly totals, history |
-| **Attendance** | Draft/finalize sessions, bulk status save, class-day-aware validation, finalized-session immutability, absence notification queue |
-| **Notices** | Workspace-wide / batch-specific / targeted, idempotent recipient queue, email delivery via Brevo, retry with cap |
-| **SMS Wallet** | Per-workspace credit balance, immutable ledger (purchase / usage / bonus / refund / admin_adjustment), atomic debit reservation, GSM-7/Unicode segment calculation |
-| **SMS** | Bulk compose, template rendering (Bangla/English, safe variable substitution), delivery logs, provider abstraction |
-| **Communication** | Email + SMS sends, scheduling, automation triggers, delivery tracking |
-| **Expenses** | Categorized expense records, reversal/audit history, financial aggregates |
-| **Platform Owner** | Plan CRUD, payment review queue, workspace activation/suspension/deletion, entitlement overrides, revenue overview, audit activity |
-| **Sessions** | Active device listing, individual revocation, bulk logout, credential-based takeover |
-| **Settings** | Workspace profile, academic setup (classes/mediums/groups/subjects), fee config, communication settings, notification preferences |
+| **Auth & Security** | Better Auth integration, password reset token lifecycles, 2-device concurrency limits, session revocation. |
+| **Workspace & Onboarding** | Tenant creation, plan selection, initial workspace settings provisioning, time-zone alignment. |
+| **Students** | Comprehensive student records, guardian profiles, tag indexing, status transitions, batch enrollment histories. |
+| **Batches & Schedules** | Academic batch creation, teacher assignments, weekly schedule definitions, student enrollment adjustments. |
+| **Teachers** | Staff records, compensation schedules, batch allocations, NID verification. |
+| **Student Fees** | Monthly fee generation, multi-channel payment records (Cash, bKash, Nagad), auto-generated printable receipts. |
+| **Teacher Salaries** | Monthly compensation ledgers, partial disbursements, expense ledger sync. |
+| **Attendance Engine** | Class-day validation, session drafts, immutable finalization lock, asynchronous guardian notifications. |
+| **Notices & Bulletins** | Workspace-wide and batch-targeted announcements with React Email templating. |
+| **SMS Wallet & Messaging** | Per-tenant prepaid ledger, transactional debit reservations, Unicode/Bangla segmentation logic. |
+| **Expenses** | Categorized overhead records, financial reversals, net profit aggregation. |
+| **Platform Administration** | SaaS plan CRUD, manual payment verification queue, workspace suspension and deletion queues. |
 
 ---
 
-## Database Design
+## 🗄️ Database Architecture & Migrations
 
-- **49 applied migrations** (Drizzle Kit, never hand-edited)
-- **UUIDs** for all EduFlow domain PKs
-- **BDT money** stored as `NUMERIC(19,2)` in taka (no float, no currency column — BDT is implicit)
-- **Timestamps** as `TIMESTAMPTZ` (UTC), displayed in `Asia/Dhaka` by the application
-- **Every FK column has an index** (Postgres doesn't auto-index FKs)
-- **Financial/audit records are never deleted** — archived, voided, or soft-deleted
-- **RLS on all tenant tables** — policies enforced at the DB level
-
-Key tables: `workspaces`, `workspace_members`, `workspace_roles`, `workspace_role_permissions`, `plans`, `subscriptions`, `payment_requests`, `students`, `batches`, `batch_students`, `batch_teachers`, `student_fees`, `student_payments`, `teacher_salaries`, `attendance_sessions`, `attendance_records`, `notices`, `notice_recipients`, `sms_wallets`, `sms_transactions`, `sms_messages`, `expenses`, `audit_logs`
+- **ORM:** Drizzle ORM — explicit SQL-like syntax with zero hidden runtime overhead.
+- **Migration History:** 49 ordered, non-destructive SQL migrations located in `drizzle/`.
+- **Primary Keys:** UUIDv4 generated at database layer (`gen_random_uuid()`).
+- **Composite Indexes:** Every foreign key column is indexed to maintain sub-millisecond query planning under multi-tenant joins.
 
 ---
 
-## Async Processing
+## 🧪 Testing & Reliability
 
-Long-running or external operations never block the API. They are handed to RabbitMQ:
-
-| Task | Trigger |
-|---|---|
-| Absence notifications (email/SMS to guardians) | Attendance finalized |
-| Notice email delivery | Notice queued |
-| Fee/subscription reminders | Render Cron → RabbitMQ |
-| Bulk SMS sends | SMS compose confirmed |
-| Provider retries | Failed delivery detected |
-
-Workers must be **idempotent** — duplicate processing must not double-send or double-charge.
-
-Render Cron handles time-based triggers (subscription expiry checks, renewal reminders, workspace deletion scheduling, fee due reminders) — discovers work and enqueues to RabbitMQ rather than doing it inline.
-
----
-
-## Backend Structure
-
-```
-backend/
-├── src/
-│   ├── app.ts                    # Express app setup
-│   ├── server.ts                 # Entry point
-│   ├── auth.ts                   # Better Auth configuration + hooks
-│   ├── config/                   # Environment-backed config
-│   ├── controllers/              # HTTP input/output — no business logic
-│   ├── database/
-│   │   ├── client.ts             # Drizzle client
-│   │   ├── schema/               # Table definitions (Drizzle)
-│   │   ├── relations/            # Drizzle relations
-│   │   └── seed/                 # Authorization seed data
-│   ├── lib/                      # Shared infrastructure (Pino logger, etc.)
-│   ├── middleware/               # Auth, workspace, entitlement, permission, error
-│   ├── routes/
-│   │   ├── health.routes.ts
-│   │   └── v1/                   # All application routes under /api/v1
-│   ├── services/                 # Domain business logic, Drizzle queries, mappers
-│   ├── types/                    # Central backend TypeScript types
-│   └── validation/               # Zod schemas for all request input
-├── drizzle/                      # Generated SQL migrations + snapshots
-├── test/                         # Integration tests (Vitest + Supertest)
-│   ├── session-management.test.mjs
-│   ├── auth.test.mjs
-│   ├── student-api.test.mjs
-│   └── ...                       # 36+ test files
-├── openapi.yaml                  # Full OpenAPI 3.0 specification
-└── drizzle.config.ts
-```
-
----
-
-## Getting Started (Local Dev)
-
-### Prerequisites
-
-- Node.js 20+
-- PostgreSQL running locally (or Docker)
-- RabbitMQ (optional — only needed for async features like absence notifications)
-
-### Setup
+The test suite runs against a live PostgreSQL database instance using Vitest and Supertest:
 
 ```bash
-# Clone
-git clone https://github.com/YeasarArefin/EduFlow_backend.git
-cd EduFlow_backend
-
-# Install dependencies
-npm install
-
-# Set up environment
-cp .env.example .env
-# Edit .env — see Environment Variables below
-
-# Run database migrations
-npm run db:migrate
-
-# Seed platform owner + permissions
-npm run db:seed
-
-# Start dev server (port 4000)
-npm run dev
-```
-
-### Docker (PostgreSQL only)
-
-```bash
-docker compose up -d postgres
-```
-
----
-
-## Environment Variables
-
-```env
-# Server
-PORT=4000
-NODE_ENV=development
-
-# Database
-DATABASE_URL=postgresql://postgres:password@localhost:5432/eduflow
-
-# Better Auth
-BETTER_AUTH_SECRET=your-secret-here
-BETTER_AUTH_URL=http://localhost:4000
-
-# Frontend (CORS)
-FRONTEND_URL=http://localhost:3000
-
-# Email (Nodemailer)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your@gmail.com
-SMTP_PASS=your-app-password
-
-# Brevo (Notice emails)
-BREVO_API_KEY=your-brevo-key
-BREVO_FROM_EMAIL=noreply@yourdomain.com
-
-# RabbitMQ (optional for local)
-RABBITMQ_URL=amqp://localhost:5672
-
-# Sentry (optional)
-SENTRY_DSN=https://...
-```
-
-See [`.env.example`](./.env.example) for the full list with descriptions.
-
----
-
-## Testing
-
-```bash
-# Build first (tests import from dist/)
+# Build TypeScript prior to test execution
 npm run build
 
-# Run all tests
+# Run all test suites
 npm test
 
-# Run a specific test file
+# Run specific functional suites
 npm run test:session-management
 npm run test:auth
 ```
 
-**Test coverage highlights:**
-
-| Test File | What it covers |
-|---|---|
-| `session-management.test.mjs` | 11 tests — device limit (1st/2nd OK, 3rd blocked), takeover, invalid credentials, individual revoke, expired sessions |
-| `auth.test.mjs` | Sign-in, email verification, password reset |
-| `student-api.test.mjs` | Student CRUD, quota checks, tenant isolation |
-| `student-fee-api.test.mjs` | Fee generation, payment recording, receipt auto-generation |
-| `attendance-api.test.mjs` | Session create, bulk mark, finalize, immutability |
-| `rls-isolation.test.mjs` | Cross-tenant data leak prevention |
-| `subscription-lifecycle-e2e.test.mjs` | Full subscription lifecycle (signup → payment → approve → access → expiry) |
-| `teacher-api.test.mjs` | Teacher CRUD, salary records |
-| `sms-wallet-api.test.mjs` | Wallet credits, immutable ledger, atomic debit |
-| `saas-funnel-e2e.test.mjs` | End-to-end SaaS funnel from registration to workspace access |
-| ...and 26 more | Comprehensive domain + security coverage |
+### Coverage Highlights
+- **`session-management.test.mjs` (11/11 Passing):** Verifies 1st/2nd session authorization, 3rd session lockout, credential takeover, device revocation, and automatic expired-session exclusions.
+- **`rls-isolation.test.mjs`:** Asserts strict boundary enforcement preventing tenant data leaks.
+- **`student-fee-api.test.mjs`:** Validates transactional fee recalculations and receipt sequence integrity.
+- **`subscription-lifecycle-e2e.test.mjs`:** Tests tenant checkout, admin approval, and quota adjustments.
 
 ---
 
-## API Documentation
+## 📖 API Documentation
 
-The full OpenAPI 3.0 spec is in [`openapi.yaml`](./openapi.yaml). It covers every frontend-facing endpoint with:
-- HTTP method + path
-- Authentication requirements
-- Required permission
-- Request body / query params (Zod-aligned schemas)
-- Response shapes
-- Error codes
-
-Every new API endpoint **must** update `openapi.yaml` in the same commit.
+The complete API contract is documented under **OpenAPI 3.0** in [`openapi.yaml`](./openapi.yaml):
+- Comprehensive parameter schemas matching backend Zod definitions.
+- Required session authentication and permission codes for each route.
+- Structured response formats and error response schemas (`{ error: { code, message } }`).
 
 ---
 
-## Key Engineering Decisions
+## 🛠️ Local Development Setup
 
-### Modular Monolith, Not Microservices
-Single deployable API (+ separate worker). Postgres is the source of truth. No service mesh, no Kafka, no inter-service HTTP calls. Simple, debuggable, deployable on a single Render instance.
+### Prerequisites
+- Node.js 20+
+- PostgreSQL instance running on port `5432` or `5433` (Docker Compose supported)
+- RabbitMQ instance (optional for local non-async testing)
 
-### Drizzle ORM Over Prisma / TypeORM
-Drizzle is SQL-first and type-safe with zero magic. Queries look like SQL, compile to SQL, and are inspectable at a glance. No hidden N+1, no lazy-loading footguns, no runtime schema reflection.
+### Installation & Startup
 
-### Better Auth Over Rolling Your Own
-Better Auth handles session cookies, CSRF protection, password hashing (bcrypt), email verification tokens, password reset tokens, and cookie rotation. The backend extends it with `databaseHooks` for the session device limit.
+```bash
+# 1. Clone repository
+git clone https://github.com/YeasarArefin/EduFlow_backend.git
+cd EduFlow_backend
 
-### Zod Everywhere
-All external input — request body, query params, environment variables — is validated with Zod before touching business logic. Invalid input is rejected at the middleware layer with structured error responses.
+# 2. Install dependencies
+npm install
 
-### Financial Integrity
-- All money in `NUMERIC(19,2)` — no float arithmetic
-- Payment records are **immutable** — no `UPDATE` on historical payments
-- Fee status recalculated transactionally on each payment
-- SMS wallet uses atomic reservation → debit → ledger pattern — no bare balance mutation
-- Audit log records every business-significant action with actor, timestamp, and before/after state
+# 3. Environment configuration
+cp .env.example .env
 
-### Session Security
-- Max 2 active sessions per user — enforced by Better Auth `databaseHooks.session.create.before` (throws `SESSION_LIMIT_REACHED` 403)
-- Also enforced by PostgreSQL trigger `enforce_session_limit()` as a second independent safety net
-- Credential-based takeover: `verifyPassword` → `revokeAllSessions` → `signInEmail({ asResponse: true })` → forward `Set-Cookie`
-- Session tokens never appear in response bodies — only in `Set-Cookie` headers
+# 4. Run database migrations
+npm run db:migrate
 
-### Never Trust the Client for Workspace Identity
-`workspaceId` is always resolved server-side from the authenticated session. Any client-provided `workspaceId` in the request body or query string is ignored. This makes cross-tenant attacks structurally impossible at the application layer — not just a policy.
+# 5. Seed initial authorization roles & super-admin
+npm run db:seed
 
----
-
-## Related Repositories
-
-| Repository | Description |
-|---|---|
-| [EduFlow_frontend](https://github.com/YeasarArefin/EduFlow_frontend) | Next.js 15 frontend — App Router, TanStack Query, shadcn/ui, ORBIT design system |
+# 6. Start development server (Port 4000)
+npm run dev
+```
 
 ---
 
-<p align="center">Built with ❤️ by <a href="https://github.com/YeasarArefin">Yeasar Arefin</a></p>
+## 👨‍💻 Author & Engineering Contact
+
+Built with dedication to clean code, robust architecture, and high-fidelity UX by **Yeasar Arefin**.
+
+<table border="0">
+  <tr>
+    <td width="100" align="center" valign="middle">
+      <img src="https://github.com/YeasarArefin.png" width="90" height="90" style="border-radius: 50%;" alt="Yeasar Arefin" />
+    </td>
+    <td>
+      <strong>Yeasar Arefin</strong><br/>
+      <em>Full-Stack & Systems Software Engineer</em><br/><br/>
+      🌐 <strong>Portfolio:</strong> <a href="https://yeasararefin.vercel.app">yeasararefin.vercel.app</a><br/>
+      📬 <strong>Direct Contact:</strong> <a href="mailto:yeasar.arefin.contact@gmail.com">yeasar.arefin.contact@gmail.com</a><br/>
+      🐙 <strong>GitHub Profile:</strong> <a href="https://github.com/YeasarArefin">@YeasarArefin</a>
+    </td>
+  </tr>
+</table>
